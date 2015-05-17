@@ -65,20 +65,8 @@
                 (set! (.-width c) w)
                 (set! (.-height c) h)
                 (-> d (.drawImage im 0 0))
-                (let [data (.getImageData d 0 0 w h)
-                      raw (.-data data)
-                      copy (js/Uint8ClampedArray. raw)]
-                  (doall (for [x (range w)
-                               y (range h)]
-                           (let [px (if (f (fn [gx gy] (:g (get-pix data gx gy))) x y)
-                                      (do
-                                        (aset copy (* 4 (+ x (* w y))) 0)
-                                        (aset copy (+ 1 (* 4 (+ x (* w y)))) 0)
-                                        (aset copy(+ 2 (* 4 (+ x (* w y)))) 0)))]
-)
-                           ))
-                  (.set raw copy)
-                  (.putImageData d data 0 0))
+                (set! (.-fillStyle d) "white")
+                (-> d (.fillText "hi" 100 100 ))
 
 
                 (reset! (cursor session/state [:imgs name]) (canvas->img c)))))
