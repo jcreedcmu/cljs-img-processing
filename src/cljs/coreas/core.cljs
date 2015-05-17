@@ -48,8 +48,8 @@
                   (doall (for [x (range w)
                                y (range h)]
                            (let [px (if (f (fn [gx gy] (aget raw (* 4 (+ gx (* w gy))))) x y)
-                                      255
-                                      0)]
+                                      0
+                                      255)]
                              (aset copy (* 4 (+ x (* w y))) px)
                              (aset copy (+ 1 (* 4 (+ x (* w y)))) px)
                              (aset copy(+ 2 (* 4 (+ x (* w y)))) px))
@@ -65,10 +65,10 @@
   (session/put! :imgs {})
   [:div  [:h2 "Thing"]
    [loading-img "map.png" (fn [get x y] (or
-                                         (> (get x y) (get (inc x) y))
-                                         (> (get x y) (get (dec x) y))
-                                         (> (get x y) (get  x (inc y)))
-                                         (> (get x y) (get  x (dec y)))))]])
+                                         (< (get x y) (get (inc x) y))
+                                         (< (get x y) (get (dec x) y))
+                                         (< (get x y) (get  x (inc y)))
+                                         (< (get x y) (get  x (dec y)))))]])
 
 
 ;; Initialize app
