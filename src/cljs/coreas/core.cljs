@@ -95,7 +95,7 @@
 
 
 (go
-  (let [bundle (<! (img->bundle "map-out.png"))]
+  (let [bundle (<! (img->bundle "map.png"))]
     (session/put! :bundle bundle)))
 
 (defn msg-widget [atm dispatch]
@@ -226,6 +226,21 @@
                {:pos [809 678], :text "minar"}
                {:pos [877 703], :text "cubre"}
                {:pos [902 768], :text "tarodaro"}])
+
+(defn make-map
+  "like _.object, convert a list of [key, value] pairs into a map."
+  [pairs]
+  (zipmap (map first pairs) (map second pairs)))
+
+(defn color->text [c] (str (:r c) "/" (:g c) "/" (:b c)))
+(.log js/console
+      (.stringify
+       js/JSON
+       (clj->js (make-map (map #(do (let [[x y] (:pos %)]
+                                      [(color->text
+                                        (get-pix (:data (session/get :bundle)) x y))
+                                       (:text %)]))
+                      (session/get :labels))))))
 
 ;; Initialize app
 (defn mount-root []
