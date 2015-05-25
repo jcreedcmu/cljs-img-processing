@@ -23,6 +23,29 @@
    {:component-did-mount #(-> % (.getDOMNode) (.appendChild img))
     :reagent-render (fn [img] [:span])}))
 
+
+(defn debug [] (pr "what" (session/get :msg)) (session/put! :msg (inc (session/get :msg))) nil)
+
+
+(defn img-canvas [name other]
+  (session/get :msg)
+  (reagent/create-class
+   {:paint (fn [this] (pr "oh god" (session/get :msg)))
+    :component-did-mount (fn [this]
+                           (session/get :msg)
+                           (let [c (.getDOMNode this)
+                                 img (get-in @session/state [:imgs name])]
+                             (aset c "width" (.-width img))
+                             (aset c "height" (.-height img))
+                             (aset c "d" (.getContext c "2d"))
+                             (.paint this)
+                             ))
+    ;; :component-will-receive-props (fn [this] (pr "will-receive-props") (.paint this))
+    :component-will-update (fn [this] (pr "will-update") (.paint this))
+    :reagent-render (fn [name other]
+                      (session/get :msg)
+                      [:canvas])}))
+
 (defn canvas->img [c]
   (let [img (js/Image.)]
     (set! (.-src img) (.toDataURL c))
@@ -50,12 +73,14 @@
            {:r (aget data base) :g (aget data (inc base))
             :b (aget data (+ 2 base)) :a (aget data (+ 3 base))}))
 
-(defn loading-img [name f]
-
-  (if-let [img (get-in @session/state [:imgs name])]
-    (do (print img) [img-wrapper img])
-    (let [im (js/Image.)]
-      (aset im "src" name)
+(defn img->bundle
+  "Returns a channel on which a record is written containing {:img
+  img :data data} where img is the image itself and data is the image
+  data object."
+  [url]
+  (let [im (js/Image.)]
+    (aset im "src" url)
+    (let [ch (chan)]
       (aset im "onload"
             (fn [e]
               (let [c (.createElement js/document "canvas")
@@ -65,21 +90,34 @@
                 (set! (.-width c) w)
                 (set! (.-height c) h)
                 (-> d (.drawImage im 0 0))
-                (set! (.-fillStyle d) "white")
-                (-> d (.fillText "hi" 100 100 ))
+                (go (>! ch {:img im
+                            :data (.getImageData d 0 0 w h)}))
+                )))
+      ch)))
 
 
-                (reset! (cursor session/state [:imgs name]) (canvas->img c)))))
-     [:span "Loading..."])))
+(go
+  (let [bundle (<! (img->bundle "map.png"))]
+    (session/put! :bundle bundle)))
 
+(defn msg-widget [] [:span [:input {:type "text"}]   (pr-str (session/get :msg))])
 (defn home-page []
   (session/put! :imgs {})
-  [:div  [:h2 "Thing"]
-   [loading-img "map.png" (fn [get x y] (or
-                                         (< (get x y) (get (inc x) y))
-                                         (< (get x y) (get (dec x) y))
-                                         (< (get x y) (get  x (inc y)))
-                                         (< (get x y) (get  x (dec y)))))]])
+  [:div
+   [msg-widget]
+   [:img { :on-mouse-move
+          (fn [e]
+            (let [x (- (.-clientX e) (-> e (.-target) (.-offsetLeft)))
+                  y (- (.-clientY e) (-> e (.-target) (.-offsetTop)))]
+             (session/put!
+              :msg {:x x
+                    :y y
+                    :c (if-let [bundle (session/get :bundle)]
+                         (:g (get-pix (:data bundle) x y))
+                         nil)})))
+          :src "map.png"}]
+
+   ])
 
 
 ;; Initialize app
