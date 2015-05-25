@@ -5,7 +5,8 @@
               [goog.events :as events]
               [goog.history.EventType :as EventType]
               [cljsjs.react :as react]
-              [cljs.core.async :as ca :refer [chan put! timeout]])
+              [cljs.core.async :as ca :refer [chan put! timeout]]
+              [cljs.core.match :refer-macros [match]])
     (:require-macros
      [cljs.core.async.macros :refer [go alt!]])
     (:import goog.History))
@@ -97,37 +98,35 @@
   (let [bundle (<! (img->bundle "map.png"))]
     (session/put! :bundle bundle)))
 
-(defn msg-widget [] [:span
-;;                     (pr-str (session/get :labels))
-
-                     [:input {:type "text"}]   (pr-str (session/get :msg))])
+(defn msg-widget [atm dispatch]
+  [:form {:on-submit #(do (dispatch [:add])
+                          (.preventDefault %))}
+   [:input {:id "name" :type "text" :value @atm
+            :on-change #(reset! atm (-> % (.-target) (.-value)))} ]
+   (pr-str (session/get :msg))])
 
 (defn relpos [e]
   (let [x (- (.-pageX e) (-> e (.-target) (.-offsetLeft)))
         y (- (.-pageY e) (-> e (.-target) (.-offsetTop)))]
     {:x x :y y}))
 
-(defn map-jig [img labels]
+(defn map-jig [img labels dispatch]
   (let [paint-fn
         (fn [this d [labels]]
           (-> d (.drawImage img 0 0 ))
-          (doseq [[x y] labels]
-            (set! (.-strokeStyle d) "white")
-            (set! (.-lineWidth d) 2)
+          (doseq [{text :text [x y] :pos} labels]
+            (set! (.-font d) "12px")
+            (set! (.-imageSmoothingEnabled d) "false")
+            (set! (.-textAlign d) "center")
             (doto d
-              (.beginPath)
-              (.moveTo (- x 10) y)
-              (.lineTo (+ x 10) y)
-              (.stroke)
-              (.beginPath)
-              (.moveTo x (- y 10))
-              (.lineTo x (+ y 10))
-              (.stroke))))]
+              (aset "fillStyle" "black")
+              (.fillText text x y))))]
     [canvas-comp {:width (.-width img) :height (.-height img)
                   :paint paint-fn
                   :on-mouse-down
                   (fn [e] (let [{:keys [x y]} (relpos e)]
-                            (session/swap! update :labels #(conj (or % []) [x y]))))
+                            (dispatch [:curpos [x y]])
+                            (.preventDefault e)))
                   :on-mouse-move
                   (fn [e]
                     (let [{:keys [x y]} (relpos e)]
@@ -139,14 +138,32 @@
                                   nil)})))}
      labels]))
 
+(defn dispatch [msg]
+  (match [msg]
+         [[:curpos [x y]]]
+         (do
+           (session/put! :pos [x y])
+           (-> js/document (.getElementById "name") (.focus)))
+         [[:add]]
+         (do
+           (session/put!
+            :labels
+            (concat [{:pos (session/get :pos)
+                      :text (session/get :text)}]
+                    (session/get :labels)))
+           (session/put! :pos [0 0])
+           (session/put! :text ""))))
+
 (defn home-page []
   (session/put! :imgs {})
   [:div
    (if-let [bundle (session/get :bundle)]
-     [map-jig (:img bundle []) (session/get :labels)]
+     [map-jig (:img bundle []) (conj (or (session/get :labels) [])
+                                     {:text (session/get :text)
+                                      :pos (session/get :pos)}) dispatch]
      [:span])
    [:br]
-   [msg-widget]])
+   [msg-widget (cursor session/state [:text]) dispatch]])
 
 
 ;; Initialize app
