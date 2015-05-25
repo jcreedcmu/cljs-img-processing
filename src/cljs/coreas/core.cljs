@@ -24,27 +24,24 @@
     :reagent-render (fn [img] [:span])}))
 
 
-(defn debug [] (pr "what" (session/get :msg)) (session/put! :msg (inc (session/get :msg))) nil)
-
-
-(defn img-canvas [name other]
-  (session/get :msg)
+(defn canvas-comp [attrs & props]
   (reagent/create-class
-   {:paint (fn [this] (pr "oh god" (session/get :msg)))
+
+   {:paint (or (:paint attrs) (fn [this] (print "default paint")))
     :component-did-mount (fn [this]
-                           (session/get :msg)
-                           (let [c (.getDOMNode this)
-                                 img (get-in @session/state [:imgs name])]
-                             (aset c "width" (.-width img))
-                             (aset c "height" (.-height img))
-                             (aset c "d" (.getContext c "2d"))
-                             (.paint this)
+                           (let [c (.getDOMNode this)]
+                             (aset c "width" (:width attrs))
+                             (aset c "height" (:height attrs))
+                             (let [ctx (.getContext c "2d")]
+                               (aset c "d" ctx)
+                               (.paint this ctx props))
                              ))
-    ;; :component-will-receive-props (fn [this] (pr "will-receive-props") (.paint this))
-    :component-will-update (fn [this] (pr "will-update") (.paint this))
-    :reagent-render (fn [name other]
-                      (session/get :msg)
-                      [:canvas])}))
+    :component-will-receive-props
+    (fn [this [_ _ & props]]
+      (.paint this (-> this (.getDOMNode) (.-d)) props))
+    ;;    :component-will-update (fn [this] (pr "will-update"))
+    :reagent-render (fn [attrs & props]
+                      [:canvas (dissoc attrs :width :height :paint)])}))
 
 (defn canvas->img [c]
   (let [img (js/Image.)]
@@ -100,24 +97,56 @@
   (let [bundle (<! (img->bundle "map.png"))]
     (session/put! :bundle bundle)))
 
-(defn msg-widget [] [:span [:input {:type "text"}]   (pr-str (session/get :msg))])
+(defn msg-widget [] [:span
+;;                     (pr-str (session/get :labels))
+
+                     [:input {:type "text"}]   (pr-str (session/get :msg))])
+
+(defn relpos [e]
+  (let [x (- (.-pageX e) (-> e (.-target) (.-offsetLeft)))
+        y (- (.-pageY e) (-> e (.-target) (.-offsetTop)))]
+    {:x x :y y}))
+
+(defn map-jig [img labels]
+  (let [paint-fn
+        (fn [this d [labels]]
+          (-> d (.drawImage img 0 0 ))
+          (doseq [[x y] labels]
+            (set! (.-strokeStyle d) "white")
+            (set! (.-lineWidth d) 2)
+            (doto d
+              (.beginPath)
+              (.moveTo (- x 10) y)
+              (.lineTo (+ x 10) y)
+              (.stroke)
+              (.beginPath)
+              (.moveTo x (- y 10))
+              (.lineTo x (+ y 10))
+              (.stroke))))]
+    [canvas-comp {:width (.-width img) :height (.-height img)
+                  :paint paint-fn
+                  :on-mouse-down
+                  (fn [e] (let [{:keys [x y]} (relpos e)]
+                            (session/swap! update :labels #(conj (or % []) [x y]))))
+                  :on-mouse-move
+                  (fn [e]
+                    (let [{:keys [x y]} (relpos e)]
+                      (session/put!
+                       :msg {:x x
+                             :y y
+                             :c (if-let [bundle (session/get :bundle)]
+                                  (dissoc (get-pix (:data bundle) x y) :a)
+                                  nil)})))}
+     labels]))
+
 (defn home-page []
   (session/put! :imgs {})
   [:div
-   [msg-widget]
-   [:img { :on-mouse-move
-          (fn [e]
-            (let [x (- (.-clientX e) (-> e (.-target) (.-offsetLeft)))
-                  y (- (.-clientY e) (-> e (.-target) (.-offsetTop)))]
-             (session/put!
-              :msg {:x x
-                    :y y
-                    :c (if-let [bundle (session/get :bundle)]
-                         (:g (get-pix (:data bundle) x y))
-                         nil)})))
-          :src "map.png"}]
-
-   ])
+   (if-let [bundle (session/get :bundle)]
+     [map-jig (:img bundle []) (session/get :labels)]
+     [:span])
+   [:br]
+   [msg-widget]])
 
 
 ;; Initialize app
