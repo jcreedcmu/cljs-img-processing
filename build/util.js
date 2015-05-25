@@ -2,6 +2,14 @@ var fs = require('fs');
 var PNG = require('node-png').PNG;
 var Canvas = require('canvas');
 
+function min(x, y) {
+  return x < y ? x : y;
+}
+
+function max(x, y) {
+  return x > y ? x : y;
+}
+
 function get(im, x, y) {
   var g = get3(im, x, y);
   return g[1];
@@ -39,6 +47,8 @@ function output_image(filename, d, imdat) {
   c.pngStream().pipe(fs.createWriteStream(filename));
 }
 
+exports.min = min;
+exports.max = max;
 exports.get = get;
 exports.get3 = get3;
 exports.set3 = set3;
