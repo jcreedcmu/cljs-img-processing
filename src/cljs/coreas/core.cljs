@@ -120,7 +120,15 @@
             (set! (.-textAlign d) "center")
             (doto d
               (aset "fillStyle" "black")
-              (.fillText text x y))))]
+              (.beginPath)
+              (.arc x (- y 3) 5.5 0 6.28)
+              (.fill)
+              (aset "fillStyle" "#fe7")
+              (.beginPath)
+              (.arc x (- y 3) 4 0 6.28)
+              (.fill)
+
+)))]
     [canvas-comp {:width (.-width img) :height (.-height img)
                   :paint paint-fn
                   :on-mouse-down
@@ -203,7 +211,7 @@
                {:pos [378 561], :text "mayarapit"}
                {:pos [457 658], :text "huatosurak"}
                {:pos [385 675], :text "huiyepitnaya"}
-               {:pos [384 749], :text "tlorukpit"}
+               {:pos [384 747], :text "tlorukpit"}
                {:pos [492 697], :text "kunzi"}
                {:pos [555 671], :text "urrakeny"}
                {:pos [566 735], :text "juta"}
@@ -213,7 +221,7 @@
                {:pos [834 738], :text "oskeny"}
                {:pos [776 730], :text "daloe"}
                {:pos [715 734], :text "gorik"}
-               {:pos [736 623], :text "nonggadum"}
+               {:pos [738 631], :text "nonggadum"}
                {:pos [776 649], :text "ribbonnad"}
                {:pos [809 678], :text "minar"}
                {:pos [877 703], :text "cubre"}
