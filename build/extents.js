@@ -16,16 +16,5 @@ u.with_image(__dirname + '/../resources/public/map.png', function(imdat, d) {
       e.max_y = u.max(e.max_y, y);
     }
   }
-
-
   console.log(extent);
 });
-
-function optimizePts(pts) {
-  var newpts = [];
-  for (var i = 0; i < pts.length; i++) {
-   if (i % 3 == 0 || i == pts.length - 1)
-     newpts.push(pts[i]);
-  }
-  return newpts;
-}

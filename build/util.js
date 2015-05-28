@@ -10,6 +10,10 @@ function max(x, y) {
   return x > y ? x : y;
 }
 
+function get_slash(im, x, y) {
+  return get3(im, x, y).join("/");
+}
+
 function get(im, x, y) {
   var g = get3(im, x, y);
   return g[1];
@@ -50,6 +54,7 @@ function output_image(filename, d, imdat) {
 exports.min = min;
 exports.max = max;
 exports.get = get;
+exports.get_slash = get_slash;
 exports.get3 = get3;
 exports.set3 = set3;
 exports.with_image = with_image;
