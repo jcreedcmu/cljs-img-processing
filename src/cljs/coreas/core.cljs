@@ -69,7 +69,7 @@
     {:r (aget data base) :g (aget data (inc base))
      :b (aget data (+ 2 base)) :a (aget data (+ 3 base))}))
 
-(defn img->bundle
+(defn img-bundle-future
   "Returns a channel on which a record is written containing {:img
   img :data data} where img is the image itself and data is the image
   data object."
@@ -87,14 +87,11 @@
                 (set! (.-height c) h)
                 (-> d (.drawImage im 0 0))
                 (go (>! ch {:img im
+                            :canvas c
+                            :ctx d
                             :data (.getImageData d 0 0 w h)}))
                 )))
       ch)))
-
-
-#_ (go
-     (let [bundle (<! (img->bundle "map.png"))]
-       (session/put! :bundle bundle)))
 
 
 
@@ -131,20 +128,18 @@
     atm))
 
 (def map-pieces-info (ch->atom (json-future "/built/map-pieces.json")))
-(def map-pieces-img (ch->atom (img-future "/built/map-pieces.png")))
-
-
+(def map-pieces-img (ch->atom (img-bundle-future "/built/map-pieces.png")))
 
 
 (defn home-page []
   (let [info @map-pieces-info
-        img @map-pieces-img]
+        img (:canvas @map-pieces-img)]
     (if (and info img)
       [canvas-comp {:width 1000 :height 1000
                     :paint (fn [this d]
 
                              (doto d
-                               (aset "fillStyle" "#def")
+                               (aset "fillStyle" "#eff")
                                (.fillRect 0 0 1000 1000))
                              (print (:cell_size info))
 
@@ -153,14 +148,21 @@
                                      extent (get-in info [:extents (keyword color)])
                                      size (get-in info [:sizes (keyword color)])
                                      basex (* (:x (:cell_size info)) (mod n (:num_cells info)))
-                                     basey (* (:y (:cell_size info)) (int (/ n (:num_cells info))))]
-                                 (if (not= 0 (mod n 3))
+                                     basey (* (:y (:cell_size info)) (int (/ n (:num_cells info))))
+                                     sizex (:x size)
+                                     sizey (:y size)]
+                                 (when true
+                                   (doto (:ctx @map-pieces-img)
+                                     (aset "globalCompositeOperation" "source-atop")
+                                     (aset "fillStyle" (get ["#7a7" "#a7a" "#77a" "#aa7" "#7aa" "#a77" "#aaa" "#777"] (mod n 8) ))
+                                     (.fillRect basex basey sizex sizey)
+                                     )
 
                                    (doto d
-;;                                     (aset "globalCompositeOperation" "source-atop")
+
                                      (.drawImage img
-                                                 basex basey (:x size) (:y size)
-                                                 (:min_x extent) (:min_y extent) (:x size) (:y size)))))
+                                                 basex basey sizex sizey
+                                                 (:min_x extent) (:min_y extent) sizex sizey))))
                                ))}]
       [:span])))
 
