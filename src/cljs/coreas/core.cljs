@@ -133,14 +133,17 @@
 
 (defn home-page []
   (let [info @map-pieces-info
-        img (:canvas @map-pieces-img)]
+        img (:canvas @map-pieces-img)
+        w (:width (:orig_image_size info))
+        h (:height (:orig_image_size info))]
+    (print w)
     (if (and info img)
-      [canvas-comp {:width 1000 :height 1000
+      [canvas-comp {:width w :height h
                     :paint (fn [this d]
 
                              (doto d
                                (aset "fillStyle" "#eff")
-                               (.fillRect 0 0 1000 1000))
+                               (.fillRect 0 0 w h))
                              (print (:cell_size info))
 
                              (doseq [n (range (count (:colors info)))]

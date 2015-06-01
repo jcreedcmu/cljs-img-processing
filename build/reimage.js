@@ -60,5 +60,10 @@ extents.get_extents(function(extents, imdat, c) {
 
   u.output_image(__dirname + '/../built/map-pieces.png', cc, newdat);
   fs.writeFileSync(__dirname + '/../built/map-pieces.json', JSON.stringify(
-    {colors:colors, num_cells:num_cells, cell_size:biggest, sizes:sizes, extents:extents}), 'utf8');
+    {colors:colors,
+     num_cells:num_cells,
+     cell_size:biggest,
+     sizes:sizes,
+     extents:extents,
+     orig_image_size:{width:imdat.width,height:imdat.height}}), 'utf8');
 });
