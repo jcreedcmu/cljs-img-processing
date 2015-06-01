@@ -21,7 +21,8 @@
                  [org.clojure/clojurescript "0.0-3211" :scope "provided"]
                  [secretary "1.2.3"]
                  [org.clojure/core.async "0.1.346.0-17112a-alpha"]
-                 [org.clojure/core.match "0.3.0-alpha4"]]
+                 [org.clojure/core.match "0.3.0-alpha4"]
+                 [cljs-ajax "0.3.11"]]
 
   :plugins [[lein-ring "0.9.1"]
             [lein-environ "1.0.0"]

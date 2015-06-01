@@ -1,22 +1,23 @@
 (ns coreas.core
-    (:require [reagent.core :as reagent :refer [atom cursor]]
-              [reagent.session :as session]
-              [secretary.core :as secretary :include-macros true]
-              [goog.events :as events]
-              [goog.history.EventType :as EventType]
-              [cljsjs.react :as react]
-              [cljs.core.async :as ca :refer [chan put! timeout]]
-              [cljs.core.match :refer-macros [match]])
-    (:require-macros
-     [cljs.core.async.macros :refer [go alt!]])
-    (:import goog.History))
+  (:require [reagent.core :as reagent :refer [atom cursor]]
+            [reagent.session :as session]
+            [secretary.core :as secretary :include-macros true]
+            [goog.events :as events]
+            [goog.history.EventType :as EventType]
+            [cljsjs.react :as react]
+            [cljs.core.async :as ca :refer [chan put! timeout]]
+            [ajax.core :refer [GET]]
+            [cljs.core.match :refer-macros [match]])
+  (:require-macros
+   [cljs.core.async.macros :refer [go go-loop alt!]])
+  (:import goog.History))
 
 ;; -------------------------
 ;; Views
 (defn listen [el type]
   (let [out (chan)]
     (events/listen el type
-      (fn [e] (put! out e)))
+                   (fn [e] (put! out e)))
     out))
 
 (defn img-wrapper [img]
@@ -29,7 +30,6 @@
 
    {:paint (or (:paint attrs) (fn [this] (print "default paint")))
     :component-did-mount (fn [this]
-                           (print "yo")
                            (let [c (.getDOMNode this)]
                              (aset c "width" (:width attrs))
                              (aset c "height" (:height attrs))
@@ -53,23 +53,21 @@
   (let [width (.-width imd)
         height (.-height imd)
         data (.-data imd)]
-     (for [x (range width)]
-       (for [y (range height)]
-         (let [base (* 4 (+ x (* width y)))]
-           {:r (aget data base) :g (aget data (inc base))
-            :b (aget data (+ 2 base)) :a (aget data (+ 3 base))})))))
+    (for [x (range width)]
+      (for [y (range height)]
+        (let [base (* 4 (+ x (* width y)))]
+          {:r (aget data base) :g (aget data (inc base))
+           :b (aget data (+ 2 base)) :a (aget data (+ 3 base))})))))
 
 (defn aget-in [x ats]
   (apply aget `(~x ~@ats)))
 
-(.log js/console (aget-in (clj->js {:d {:e {:f 3}}}) ["d" "e" "f"]))
-
 (defn get-pix [imdat x y]
-         (let [w (.-width imdat)
-               base (* 4 (+ x (* w y)))
-               data (.-data imdat)]
-           {:r (aget data base) :g (aget data (inc base))
-            :b (aget data (+ 2 base)) :a (aget data (+ 3 base))}))
+  (let [w (.-width imdat)
+        base (* 4 (+ x (* w y)))
+        data (.-data imdat)]
+    {:r (aget data base) :g (aget data (inc base))
+     :b (aget data (+ 2 base)) :a (aget data (+ 3 base))}))
 
 (defn img->bundle
   "Returns a channel on which a record is written containing {:img
@@ -95,8 +93,8 @@
 
 
 #_ (go
-  (let [bundle (<! (img->bundle "map.png"))]
-    (session/put! :bundle bundle)))
+     (let [bundle (<! (img->bundle "map.png"))]
+       (session/put! :bundle bundle)))
 
 
 
@@ -108,9 +106,63 @@
 
 (defn dispatch [msg])
 
+(defn forever [c v]  (go-loop []  (>! c v) (recur)))
+
+(defn json-future [url]
+  (let [ch (chan)]
+    (go
+      (GET url {:handler #(forever ch %)
+                :error-handler #(print "an error occurred: " %)
+                :response-format :json
+                :keywords? true}))
+
+    ch))
+
+(defn img-future [url]
+  (let [img (js/Image.)
+        ch (chan)]
+    (set! (.-src img) url)
+    (set! (.-onload img) (fn [] (print "loaded") (forever ch img)))
+    ch))
+
+(defn ch->atom [ch]
+  (let [atm (atom nil)]
+    (go (reset! atm (<! ch)))
+    atm))
+
+(def map-pieces-info (ch->atom (json-future "/built/map-pieces.json")))
+(def map-pieces-img (ch->atom (img-future "/built/map-pieces.png")))
+
+
+
+
 (defn home-page []
-  [canvas-comp {:width 100 :height 100 :paint (fn [this d]
-                                                (-> d (.fillRect 0 0 100 100)))}])
+  (let [info @map-pieces-info
+        img @map-pieces-img]
+    (if (and info img)
+      [canvas-comp {:width 1000 :height 1000
+                    :paint (fn [this d]
+
+                             (doto d
+                               (aset "fillStyle" "#def")
+                               (.fillRect 0 0 1000 1000))
+                             (print (:cell_size info))
+
+                             (doseq [n (range (count (:colors info)))]
+                               (let [color (get (:colors info) n)
+                                     extent (get-in info [:extents (keyword color)])
+                                     size (get-in info [:sizes (keyword color)])
+                                     basex (* (:x (:cell_size info)) (mod n (:num_cells info)))
+                                     basey (* (:y (:cell_size info)) (int (/ n (:num_cells info))))]
+                                 (if (not= 0 (mod n 3))
+
+                                   (doto d
+;;                                     (aset "globalCompositeOperation" "source-atop")
+                                     (.drawImage img
+                                                 basex basey (:x size) (:y size)
+                                                 (:min_x extent) (:min_y extent) (:x size) (:y size)))))
+                               ))}]
+      [:span])))
 
 (session/put! :labels
               [{:pos [64 393], :text "piada"}
@@ -172,14 +224,7 @@
   (zipmap (map first pairs) (map second pairs)))
 
 (defn color->text [c] (str (:r c) "/" (:g c) "/" (:b c)))
-(.log js/console
-      (.stringify
-       js/JSON
-       (clj->js (make-map (map #(do (let [[x y] (:pos %)]
-                                      [(color->text
-                                        (get-pix (:data (session/get :bundle)) x y))
-                                       (:text %)]))
-                      (session/get :labels))))))
+
 
 ;; Initialize app
 (defn mount-root []

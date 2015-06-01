@@ -9,8 +9,8 @@ function get_sizes_from_extents(extents) {
   return _.object(
     _(extents)
       .map(function(v, k) {
-	var size = {x: v.max_x - v.min_x,
-		    y: v.max_y - v.min_y};
+	var size = {x: v.max_x - v.min_x + 2,
+		    y: v.max_y - v.min_y + 2};
 	var area = size.x * size.y;
 	if (area > 100000) return null;
 	return [k, size];
@@ -43,7 +43,7 @@ extents.get_extents(function(extents, imdat, c) {
     var ybase = int(y / biggest.y)
     for (var x = 0; x < newdat.width; x++) {
       var xbase = int(x / biggest.x);
-      var index = xbase * num_cells + ybase;
+      var index = ybase * num_cells + xbase;
       var color = colors[index];
 
       var pix = false;
