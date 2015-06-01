@@ -1,7 +1,7 @@
 var _ = require('underscore');
 var u = require('./util');
 
-u.with_image(__dirname + '/../resources/public/map.png', function(imdat, d) {
+u.with_image(__dirname + '/../resources/public/map.png', function(imdat, c) {
   var sees = {};
   function add_edge(from, to) {
     if (!sees[from]) sees[from] = {};

@@ -1,8 +1,8 @@
 var _ = require('underscore');
 var u = require('./util');
 
-u.with_image(__dirname + '/../resources/public/map.png', function(imdat, d) {
-  var newdat = d.createImageData(imdat.width, imdat.height);
+u.with_image(__dirname + '/../resources/public/map.png', function(imdat, c) {
+  var newdat = c.d.createImageData(imdat.width, imdat.height);
   for (var y = 0; y < imdat.height; y++) {
     for (var x = 0; x < imdat.width; x++) {
       var here = u.get(imdat, x, y);
@@ -18,7 +18,7 @@ u.with_image(__dirname + '/../resources/public/map.png', function(imdat, d) {
   }
 
 
-  u.output_image(__dirname + '/map-out.png', d, newdat);
+  u.output_image(__dirname + '/map-out.png', c, newdat);
 });
 
 function optimizePts(pts) {
