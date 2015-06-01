@@ -24,12 +24,12 @@
    {:component-did-mount #(-> % (.getDOMNode) (.appendChild img))
     :reagent-render (fn [img] [:span])}))
 
-
 (defn canvas-comp [attrs & props]
   (reagent/create-class
 
    {:paint (or (:paint attrs) (fn [this] (print "default paint")))
     :component-did-mount (fn [this]
+                           (print "yo")
                            (let [c (.getDOMNode this)]
                              (aset c "width" (:width attrs))
                              (aset c "height" (:height attrs))
@@ -94,84 +94,23 @@
       ch)))
 
 
-(go
+#_ (go
   (let [bundle (<! (img->bundle "map.png"))]
     (session/put! :bundle bundle)))
 
-(defn msg-widget [atm dispatch]
-  [:form {:on-submit #(do (dispatch [:add])
-                          (.preventDefault %))}
-   [:input {:id "name" :type "text" :value @atm
-            :on-change #(reset! atm (-> % (.-target) (.-value)))} ]
-   (pr-str (session/get :msg))])
+
 
 (defn relpos [e]
   (let [x (- (.-pageX e) (-> e (.-target) (.-offsetLeft)))
         y (- (.-pageY e) (-> e (.-target) (.-offsetTop)))]
     {:x x :y y}))
 
-(defn map-jig [img labels dispatch]
-  (let [paint-fn
-        (fn [this d [labels]]
-          (-> d (.drawImage img 0 0 ))
-          (doseq [{text :text [x y] :pos} labels]
-            (set! (.-font d) "12px")
-            (set! (.-imageSmoothingEnabled d) "false")
-            (set! (.-textAlign d) "center")
-            (doto d
-              (aset "fillStyle" "black")
-              (.beginPath)
-              (.arc x (- y 3) 5.5 0 6.28)
-              (.fill)
-              (aset "fillStyle" "#fe7")
-              (.beginPath)
-              (.arc x (- y 3) 4 0 6.28)
-              (.fill)
 
-)))]
-    [canvas-comp {:width (.-width img) :height (.-height img)
-                  :paint paint-fn
-                  :on-mouse-down
-                  (fn [e] (let [{:keys [x y]} (relpos e)]
-                            (dispatch [:curpos [x y]])
-                            (.preventDefault e)))
-                  :on-mouse-move
-                  (fn [e]
-                    (let [{:keys [x y]} (relpos e)]
-                      (session/put!
-                       :msg {:x x
-                             :y y
-                             :c (if-let [bundle (session/get :bundle)]
-                                  (dissoc (get-pix (:data bundle) x y) :a)
-                                  nil)})))}
-     labels]))
-
-(defn dispatch [msg]
-  (match [msg]
-         [[:curpos [x y]]]
-         (do
-           (session/put! :pos [x y])
-           (-> js/document (.getElementById "name") (.focus)))
-         [[:add]]
-         (do
-           (session/put!
-            :labels
-            (concat [{:pos (session/get :pos)
-                      :text (session/get :text)}]
-                    (session/get :labels)))
-           (session/put! :pos [0 0])
-           (session/put! :text ""))))
+(defn dispatch [msg])
 
 (defn home-page []
-  (session/put! :imgs {})
-  [:div
-   (if-let [bundle (session/get :bundle)]
-     [map-jig (:img bundle []) (conj (or (session/get :labels) [])
-                                     {:text (session/get :text)
-                                      :pos (session/get :pos)}) dispatch]
-     [:span])
-   [:br]
-   [msg-widget (cursor session/state [:text]) dispatch]])
+  [canvas-comp {:width 100 :height 100 :paint (fn [this d]
+                                                (-> d (.fillRect 0 0 100 100)))}])
 
 (session/put! :labels
               [{:pos [64 393], :text "piada"}
