@@ -1,6 +1,7 @@
 var _ = require('underscore');
 var extents = require('./extents');
 var u = require('./util');
+var fs = require('fs');
 
 int = Math.floor;
 
@@ -21,11 +22,7 @@ function get_sizes_from_extents(extents) {
 extents.get_extents(function(extents, imdat, c) {
 
   var sizes = get_sizes_from_extents(extents);
-
   var colors = _.keys(sizes);
-  var index_to_color = _.object(_.map(colors, function(col, ix) {
-    return [ix, col]
-  }));
 
   var biggest = _(["x", "y"]).map(
     function(coord) {
@@ -47,7 +44,7 @@ extents.get_extents(function(extents, imdat, c) {
     for (var x = 0; x < newdat.width; x++) {
       var xbase = int(x / biggest.x);
       var index = xbase * num_cells + ybase;
-      var color = index_to_color[index];
+      var color = colors[index];
 
       var pix = false;
       if (color != null)  {
@@ -61,7 +58,7 @@ extents.get_extents(function(extents, imdat, c) {
     }
   }
 
-  console.log('yo');
-  u.output_image(__dirname + '/out.png', cc, newdat);
-
+  u.output_image(__dirname + '/../built/map-pieces.png', cc, newdat);
+  fs.writeFileSync(__dirname + '/../built/map-pieces.json', JSON.stringify(
+    {colors:colors, num_cells:num_cells, cell_size:biggest, sizes:sizes, extents:extents}), 'utf8');
 });
