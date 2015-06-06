@@ -9,16 +9,16 @@ u.with_image(__dirname + '/../resources/public/map.png', function(imdat, c) {
       var others = [u.get(imdat, x-1, y), u.get(imdat, x, y-1),
 		    u.get(imdat, x, y+1), u.get(imdat, x+1, y)]
 
-      u.set3(newdat, x, y, (here > others[0] || here > others[1] || here > others[2] || here > others[3])  ?
-	     [0,0,0] :
+      u.set4(newdat, x, y, (here > others[0] || here > others[1] || here > others[2] || here > others[3])  ?
+	     [0,0,0,255] :
 	     (u.get(imdat, x, y) == 0x4b ?
-	      [128, 192, 192] :
-	      [255, 255, 255])  );
+	      [128, 192, 192, 255] :
+	      [255, 255, 255, 0])  );
     }
   }
 
 
-  u.output_image(__dirname + '/map-out.png', c, newdat);
+  u.output_image(__dirname + '/../built/map-outline.png', c, newdat);
 });
 
 function optimizePts(pts) {
