@@ -10,9 +10,9 @@ u.with_image(__dirname + '/../resources/public/map.png', function(imdat, c) {
 		    u.get(imdat, x, y+1), u.get(imdat, x+1, y)]
 
       u.set4(newdat, x, y, (here > others[0] || here > others[1] || here > others[2] || here > others[3])  ?
-	     [0,0,0,255] :
+	     [32,32,32,255] :
 	     (u.get(imdat, x, y) == 0x4b ?
-	      [128, 192, 192, 255] :
+	      [80, 80, 160, 255] :
 	      [255, 255, 255, 0])  );
     }
   }

@@ -129,44 +129,42 @@
 
 (def map-pieces-info (ch->atom (json-future "/built/map-pieces.json")))
 (def map-pieces-img (ch->atom (img-bundle-future "/built/map-pieces.png")))
+(def outline-img (ch->atom (img-future "/built/map-outline.png")))
 
+
+(defn paint-fn [info img w h]
+  (fn [this d]
+    (doto d
+      (aset "fillStyle" "#eff")
+      (.fillRect 0 0 w h))
+    (doseq [n (range (count (:colors info)))]
+      (let [color (get (:colors info) n)
+            extent (get-in info [:extents (keyword color)])
+            size (get-in info [:sizes (keyword color)])
+            basex (* (:x (:cell_size info)) (mod n (:num_cells info)))
+            basey (* (:y (:cell_size info)) (int (/ n (:num_cells info))))
+            sizex (:x size)
+            sizey (:y size)]
+
+        (doto (:ctx @map-pieces-img)
+          (aset "globalCompositeOperation" "source-atop")
+          (aset "fillStyle" (get ["#7a7" "#a7a" "#77a" "#aa7" "#7aa" "#a77" "#aaa" "#777"] (mod n 2) ))
+          (.fillRect basex basey sizex sizey))
+
+        (doto d
+          (.drawImage img
+                      basex basey sizex sizey
+                      (:min_x extent) (:min_y extent) sizex sizey))))
+    (doto d (.drawImage @outline-img 0 0))))
 
 (defn home-page []
   (let [info @map-pieces-info
         img (:canvas @map-pieces-img)
         w (:width (:orig_image_size info))
         h (:height (:orig_image_size info))]
-    (print w)
     (if (and info img)
       [canvas-comp {:width w :height h
-                    :paint (fn [this d]
-
-                             (doto d
-                               (aset "fillStyle" "#eff")
-                               (.fillRect 0 0 w h))
-                             (print (:cell_size info))
-
-                             (doseq [n (range (count (:colors info)))]
-                               (let [color (get (:colors info) n)
-                                     extent (get-in info [:extents (keyword color)])
-                                     size (get-in info [:sizes (keyword color)])
-                                     basex (* (:x (:cell_size info)) (mod n (:num_cells info)))
-                                     basey (* (:y (:cell_size info)) (int (/ n (:num_cells info))))
-                                     sizex (:x size)
-                                     sizey (:y size)]
-                                 (when true
-                                   (doto (:ctx @map-pieces-img)
-                                     (aset "globalCompositeOperation" "source-atop")
-                                     (aset "fillStyle" (get ["#7a7" "#a7a" "#77a" "#aa7" "#7aa" "#a77" "#aaa" "#777"] (mod n 8) ))
-                                     (.fillRect basex basey sizex sizey)
-                                     )
-
-                                   (doto d
-
-                                     (.drawImage img
-                                                 basex basey sizex sizey
-                                                 (:min_x extent) (:min_y extent) sizex sizey))))
-                               ))}]
+                    :paint (paint-fn info img w h)}]
       [:span])))
 
 (session/put! :labels
