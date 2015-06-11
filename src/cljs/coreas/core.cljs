@@ -127,13 +127,14 @@
     (go (reset! atm (<! ch)))
     atm))
 
+(def map-img (ch->atom (img-bundle-future "/map.png")))
 (def map-pieces-info (ch->atom (json-future "/built/map-pieces.json")))
 (def map-pieces-img (ch->atom (img-bundle-future "/built/map-pieces.png")))
 (def outline-img (ch->atom (img-future "/built/map-outline.png")))
 
 
 (defn paint-fn [info img w h]
-  (fn [this d]
+  (fn [this d [cc]]
     (doto d
       (aset "fillStyle" "#eff")
       (.fillRect 0 0 w h))
@@ -145,10 +146,11 @@
             basey (* (:y (:cell_size info)) (int (/ n (:num_cells info))))
             sizex (:x size)
             sizey (:y size)]
-
         (doto (:ctx @map-pieces-img)
           (aset "globalCompositeOperation" "source-atop")
-          (aset "fillStyle" (get ["#7a7" "#a7a" "#77a" "#aa7" "#7aa" "#a77" "#aaa" "#777"] (mod n 2) ))
+          (aset "fillStyle" (if (= n cc)
+                              "yellow"
+                              (get ["#7a7" "#a7a" "#77a" "#aa7" "#7aa" "#a77" "#aaa" "#777"] (mod n 2) )))
           (.fillRect basex basey sizex sizey))
 
         (doto d
@@ -157,14 +159,39 @@
                       (:min_x extent) (:min_y extent) sizex sizey))))
     (doto d (.drawImage @outline-img 0 0))))
 
+(def cur-country (atom 3))
+
+(defn color->text [c] (str (:r c) "/" (:g c) "/" (:b c)))
+
+(defn make-map
+  "like _.object, convert a list of [key, value] pairs into a map."
+  [pairs]
+  (zipmap (map first pairs) (map second pairs)))
+
+
+(defn map-component [w h img info cc-atm]
+  (let [cc @cc-atm
+        f (paint-fn info img w h)]
+    [canvas-comp {:width w :height h
+                  :paint f
+                  :on-mouse-move
+                  (fn [e] (let [{x :x y :y} (relpos e)]
+                            (reset! cc-atm ((:color-ix info) (color->text (get-pix (:data @map-img) x y))))))}
+     cc]))
+
+
+
 (defn home-page []
   (let [info @map-pieces-info
         img (:canvas @map-pieces-img)
         w (:width (:orig_image_size info))
         h (:height (:orig_image_size info))]
     (if (and info img)
-      [canvas-comp {:width w :height h
-                    :paint (paint-fn info img w h)}]
+      (let
+          [color-ix (make-map (for [n (range (count (:colors info)))]
+                           [(get (:colors info) n) n]))
+           more-info (assoc info :color-ix color-ix)]
+       [map-component w h img more-info cur-country])
       [:span])))
 
 (session/put! :labels
@@ -221,12 +248,7 @@
                {:pos [877 703], :text "cubre"}
                {:pos [902 768], :text "tarodaro"}])
 
-(defn make-map
-  "like _.object, convert a list of [key, value] pairs into a map."
-  [pairs]
-  (zipmap (map first pairs) (map second pairs)))
 
-(defn color->text [c] (str (:r c) "/" (:g c) "/" (:b c)))
 
 
 ;; Initialize app
