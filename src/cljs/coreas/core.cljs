@@ -12,6 +12,7 @@
    [cljs.core.async.macros :refer [go go-loop alt!]])
   (:import goog.History))
 
+(enable-console-print!)
 ;; -------------------------
 ;; Views
 (defn listen [el type]
@@ -134,30 +135,32 @@
 
 
 (defn paint-fn [info img w h]
-  (fn [this d [cc]]
-    (doto d
-      (aset "fillStyle" "#eff")
-      (.fillRect 0 0 w h))
-    (doseq [n (range (count (:colors info)))]
-      (let [color (get (:colors info) n)
-            extent (get-in info [:extents (keyword color)])
-            size (get-in info [:sizes (keyword color)])
-            basex (* (:x (:cell_size info)) (mod n (:num_cells info)))
-            basey (* (:y (:cell_size info)) (int (/ n (:num_cells info))))
-            sizex (:x size)
-            sizey (:y size)]
-        (doto (:ctx @map-pieces-img)
-          (aset "globalCompositeOperation" "source-atop")
-          (aset "fillStyle" (if (= n cc)
-                              "yellow"
-                              (get ["#7a7" "#a7a" "#77a" "#aa7" "#7aa" "#a77" "#aaa" "#777"] (mod n 2) )))
-          (.fillRect basex basey sizex sizey))
+  (fn [this d [game-state]]
+    (let [cc (:cc game-state)]
+     (doto d
+       (aset "fillStyle" "#eff")
+       (.fillRect 0 0 w h))
+     (doseq [n (range (count (:colors info)))]
+       (let [color (get (:colors info) n)
+             extent (get-in info [:extents (keyword color)])
+             size (get-in info [:sizes (keyword color)])
+             basex (* (:x (:cell_size info)) (mod n (:num_cells info)))
+             basey (* (:y (:cell_size info)) (int (/ n (:num_cells info))))
+             sizex (:x size)
+             sizey (:y size)]
+         (doto (:ctx @map-pieces-img)
+           (aset "globalCompositeOperation" "source-atop")
+           (aset "fillStyle" (cond
+                               (contains? (:countries game-state) n) "#e77"
+                               (= n cc) "#cc7"
+                               true "#777"))
+           (.fillRect basex basey sizex sizey))
 
-        (doto d
-          (.drawImage img
-                      basex basey sizex sizey
-                      (:min_x extent) (:min_y extent) sizex sizey))))
-    (doto d (.drawImage @outline-img 0 0))))
+         (doto d
+           (.drawImage img
+                       basex basey sizex sizey
+                       (:min_x extent) (:min_y extent) sizex sizey))))
+     (doto d (.drawImage @outline-img 0 0)))))
 
 (def cur-country (atom 3))
 
@@ -168,16 +171,23 @@
   [pairs]
   (zipmap (map first pairs) (map second pairs)))
 
+(defn xy->country-ix [info x y]
+  ((:color-ix info) (color->text (get-pix (:data @map-img) x y))))
 
-(defn map-component [w h img info cc-atm]
-  (let [cc @cc-atm
-        f (paint-fn info img w h)]
+(session/put! :game-state
+              {:countries #{}})
+
+(defn map-component [w h img info]
+  (let [f (paint-fn info img w h)]
     [canvas-comp {:width w :height h
                   :paint f
                   :on-mouse-move
                   (fn [e] (let [{x :x y :y} (relpos e)]
-                            (reset! cc-atm ((:color-ix info) (color->text (get-pix (:data @map-img) x y))))))}
-     cc]))
+                            (reset! (cursor session/state [:game-state :cc]) (xy->country-ix info x y))))
+                  :on-mouse-down
+                  (fn [e] (let [{x :x y :y} (relpos e)]
+                            (swap! (cursor session/state [:game-state :countries]) #(conj % (xy->country-ix info x y)))))}
+     (session/get :game-state)]))
 
 
 
@@ -191,7 +201,7 @@
           [color-ix (make-map (for [n (range (count (:colors info)))]
                            [(get (:colors info) n) n]))
            more-info (assoc info :color-ix color-ix)]
-       [map-component w h img more-info cur-country])
+       [map-component w h img more-info])
       [:span])))
 
 (session/put! :labels
@@ -199,7 +209,7 @@
                {:pos [113 414], :text "koennif"}
                {:pos [105 444], :text "yol"}
                {:pos [179 437], :text "ezdi"}
-               {:pos [387 335], :text "naga suria"}
+               {:pos [387 335], :text "naga sugira"}
                {:pos [163 343], :text "nivdal"}
                {:pos [262 275], :text "shiao"}
                {:pos [126 197], :text "sikau"}
