@@ -131,6 +131,7 @@
     atm))
 
 (def map-img (ch->atom (img-bundle-future "/map.png")))
+(def icons-img (ch->atom (img-bundle-future "/icons.png")))
 (def map-pieces-info (ch->atom (json-future "/built/map-pieces.json")))
 (def map-pieces-img (ch->atom (img-bundle-future "/built/map-pieces.png")))
 (def outline-img (ch->atom (img-future "/built/map-outline.png")))
@@ -139,9 +140,8 @@
 (defn paint-fn [info img w h]
   (fn [this d [game-state]]
     (let [cc (:cc game-state)]
-     (doto d
-       (aset "fillStyle" "#eff")
-       (.fillRect 0 0 w h))
+
+      ;; Draw countries
      (doseq [n (range (count (:colors info)))]
        (let [color (get (:colors info) n)
              extent (get-in info [:extents (keyword color)])
@@ -162,9 +162,14 @@
            (.drawImage img
                        basex basey sizex sizey
                        (:min_x extent) (:min_y extent) sizex sizey))))
+
+     ;; Draw oceans and country borders
      (doto d (.drawImage @outline-img 0 0))
+
+     ;; Draw resource icons
      (doseq [{[x y] :pos} labels/pos->label]
-       (.strokeRect d (- x 16.5) (- y 7.5) 32 16))
+       (.drawImage d (:img @icons-img) 0 0 15 15 (- x 16) (- y 7) 15 15)
+       (.drawImage d (:img @icons-img) 15 45 15 15 x (- y 7) 15 15))
 )))
 
 (def cur-country (atom 3))
