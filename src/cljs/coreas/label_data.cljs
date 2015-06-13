@@ -2,7 +2,7 @@
 
 (def pos->label
   [{:pos [64 393], :text "piada"}
-   {:pos [113 414], :text "koennif"}
+   {:pos [118 402], :text "koennif"}
    {:pos [105 444], :text "yol"}
    {:pos [179 437], :text "ezdi"}
    {:pos [387 335], :text "naga sugira"}

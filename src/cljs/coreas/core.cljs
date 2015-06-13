@@ -164,7 +164,7 @@
                        (:min_x extent) (:min_y extent) sizex sizey))))
      (doto d (.drawImage @outline-img 0 0))
      (doseq [{[x y] :pos} labels/pos->label]
-       (.strokeRect d (- x 5.5) (- y 5.5) 10 10))
+       (.strokeRect d (- x 16.5) (- y 7.5) 32 16))
 )))
 
 (def cur-country (atom 3))
@@ -179,6 +179,12 @@
 (defn xy->country-ix [info x y]
   ((:color-ix info) (color->text (get-pix (:data @map-img) x y))))
 
+(defn color->country-name []
+  (make-map (map (fn [{[x y] :pos text :text}] [(color->text (get-pix (:data @map-img) x y)) text]) labels/pos->label)))
+
+(defn xy->country-name [x y]
+  ((color->country-name) (color->text (get-pix (:data @map-img) x y))))
+
 (session/put! :game-state
               {:countries #{}})
 
@@ -191,6 +197,7 @@
                             (reset! (cursor session/state [:game-state :cc]) (xy->country-ix info x y))))
                   :on-mouse-down
                   (fn [e] (let [{x :x y :y} (relpos e)]
+                            (print (xy->country-name x y))
                             (swap! (cursor session/state [:game-state :countries]) #(conj % (xy->country-ix info x y)))))}
      (session/get :game-state)]))
 
