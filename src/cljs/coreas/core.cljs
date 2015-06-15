@@ -130,13 +130,14 @@
     (go (reset! atm (<! ch)))
     atm))
 
-(go (session/put!
-     :res
-     {:map-img (<! (img-bundle-future "/map.png"))
-      :icons-img (<! (img-bundle-future "/icons.png"))
-      :map-pieces-info (<! (json-future "/built/map-pieces.json"))
-      :map-pieces-img (<! (img-bundle-future "/built/map-pieces.png"))
-      :outline-img (<! (img-future "/built/map-outline.png"))}))
+(if (nil? (session/get :res))
+  (go (session/put!
+       :res
+       {:map-img (<! (img-bundle-future "/map.png"))
+        :icons-img (<! (img-bundle-future "/icons.png"))
+        :map-pieces-info (<! (json-future "/built/map-pieces.json"))
+        :map-pieces-img (<! (img-bundle-future "/built/map-pieces.png"))
+        :outline-img (<! (img-future "/built/map-outline.png"))})))
 
 (defn res [kwd] (session/get-in [:res kwd]))
 
