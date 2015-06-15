@@ -130,12 +130,17 @@
     (go (reset! atm (<! ch)))
     atm))
 
-(def map-img (ch->atom (img-bundle-future "/map.png")))
-(def icons-img (ch->atom (img-bundle-future "/icons.png")))
-(def map-pieces-info (ch->atom (json-future "/built/map-pieces.json")))
-(def map-pieces-img (ch->atom (img-bundle-future "/built/map-pieces.png")))
-(def outline-img (ch->atom (img-future "/built/map-outline.png")))
+(go (session/put!
+     :res
+     {:map-img (<! (img-bundle-future "/map.png"))
+      :icons-img (<! (img-bundle-future "/icons.png"))
+      :map-pieces-info (<! (json-future "/built/map-pieces.json"))
+      :map-pieces-img (<! (img-bundle-future "/built/map-pieces.png"))
+      :outline-img (<! (img-future "/built/map-outline.png"))}))
 
+(defn res [kwd] (session/get-in [:res kwd]))
+
+(defn ri [n] (int (* n (.random js/Math))))
 
 (defn paint-fn [info img w h]
   (fn [this d [game-state]]
@@ -150,7 +155,7 @@
              basey (* (:y (:cell_size info)) (int (/ n (:num_cells info))))
              sizex (:x size)
              sizey (:y size)]
-         (doto (:ctx @map-pieces-img)
+         (doto (:ctx (res :map-pieces-img))
            (aset "globalCompositeOperation" "source-atop")
            (aset "fillStyle" (cond
                                (contains? (:countries game-state) n) "#e77"
@@ -164,12 +169,12 @@
                        (:min_x extent) (:min_y extent) sizex sizey))))
 
      ;; Draw oceans and country borders
-     (doto d (.drawImage @outline-img 0 0))
+     (doto d (.drawImage (res :outline-img) 0 0))
 
      ;; Draw resource icons
      (doseq [{[x y] :pos} labels/pos->label]
-       (.drawImage d (:img @icons-img) 0 0 15 15 (- x 16) (- y 7) 15 15)
-       (.drawImage d (:img @icons-img) 15 45 15 15 x (- y 7) 15 15))
+       (.drawImage d (:img (res :icons-img)) (* 15 (ri 2)) (* 15 (ri 6)) 15 15 (- x 16) (- y 7) 15 15)
+       (.drawImage d (:img (res :icons-img)) (* 15 (ri 2)) (* 15 (ri 6)) 15 15 x (- y 7) 15 15))
 )))
 
 (def cur-country (atom 3))
@@ -182,13 +187,13 @@
   (zipmap (map first pairs) (map second pairs)))
 
 (defn xy->country-ix [info x y]
-  ((:color-ix info) (color->text (get-pix (:data @map-img) x y))))
+  ((:color-ix info) (color->text (get-pix (:data (res :map-img)) x y))))
 
 (defn color->country-name []
-  (make-map (map (fn [{[x y] :pos text :text}] [(color->text (get-pix (:data @map-img) x y)) text]) labels/pos->label)))
+  (make-map (map (fn [{[x y] :pos text :text}] [(color->text (get-pix (:data (res :map-img)) x y)) text]) labels/pos->label)))
 
 (defn xy->country-name [x y]
-  ((color->country-name) (color->text (get-pix (:data @map-img) x y))))
+  ((color->country-name) (color->text (get-pix (:data (res :map-img)) x y))))
 
 (session/put! :game-state
               {:countries #{}})
@@ -209,8 +214,8 @@
 
 
 (defn home-page []
-  (let [info @map-pieces-info
-        img (:canvas @map-pieces-img)
+  (let [info (res :map-pieces-info)
+        img (:canvas (res :map-pieces-img))
         w (:width (:orig_image_size info))
         h (:height (:orig_image_size info))]
     (if (and info img)
