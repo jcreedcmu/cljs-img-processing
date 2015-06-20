@@ -8,6 +8,7 @@
             [cljs.core.async :as ca :refer [chan put! timeout]]
             [ajax.core :refer [GET]]
             [cljs.core.match :refer-macros [match]]
+            [clojure.core.reducers :refer [reduce]]
             [coreas.label-data :as labels])
   (:require-macros
    [cljs.core.async.macros :refer [go go-loop alt!]])
@@ -147,9 +148,16 @@
 
 (def ICON_SIZE 15)
 
+(defn add-resource [resources {:keys [which sign]}]
+  (update resources which (if (= sign 0) inc dec)))
+
+(defn add-resources! [rs]
+  (swap! (cursor session/state [:game-state :resources])
+         #(reduce add-resource % rs)))
+
 (defn resources-of-country-ix [n]
-  [{:which (mod n 6) :sign (mod n 2)}
-   {:which (mod n 5) :sign (mod n 2)}])
+  [{:which (mod n 5) :sign (mod n 2)}
+   {:which (mod n 6) :sign 0}])
 
 (defn ixfy [seq]
   (for [n (range (count seq))]
@@ -224,6 +232,7 @@
                   :on-mouse-down
                   (fn [e] (let [{x :x y :y} (relpos e)]
                             (print (xy->country-name x y))
+                            (add-resources! (resources-of-country-ix (xy->country-ix x y)))
                             (swap! (cursor session/state [:game-state :countries]) #(conj % (xy->country-ix x y)))))}
      (session/get :game-state)]))
 
@@ -238,7 +247,7 @@
       [:span
        [map-component w h]
        [:br]
-       (pr-str @(cursor session/state [:game-state ]))]
+       (pr-str @(cursor session/state [:game-state]))]
       [:span])))
 
 
