@@ -152,12 +152,17 @@
   (update resources which (if (= sign 0) inc dec)))
 
 (defn add-resources! [rs]
-  (swap! (cursor session/state [:game-state :resources])
-         #(reduce add-resource % rs)))
+  (let [cur (cursor session/state [:game-state :resources])
+        old-resources @cur
+        new-resources (reduce add-resource old-resources rs)
+        new-resources-ok (every? #(>= % 0) new-resources)]
+    (if new-resources-ok
+      (reset! cur new-resources))
+    new-resources-ok))
 
 (defn resources-of-country-ix [n]
   [{:which (mod n 5) :sign (mod n 2)}
-   {:which (mod n 6) :sign 0}])
+   {:which (mod n 6) :sign 1}])
 
 (defn ixfy [seq]
   (for [n (range (count seq))]
@@ -231,9 +236,15 @@
                             (reset! (cursor session/state [:game-state :cc]) (xy->country-ix x y))))
                   :on-mouse-down
                   (fn [e] (let [{x :x y :y} (relpos e)]
-                            (print (xy->country-name x y))
-                            (add-resources! (resources-of-country-ix (xy->country-ix x y)))
-                            (swap! (cursor session/state [:game-state :countries]) #(conj % (xy->country-ix x y)))))}
+                            (let [ix (xy->country-ix x y)]
+                              (swap! (cursor session/state [:game-state :countries])
+                                     (fn [conts] (if (contains? conts ix)
+                                                   (do (print "nope") conts)
+                                                   (if (add-resources! (resources-of-country-ix ix))
+                                                     (do (print (xy->country-name x y))
+                                                         (conj conts ix))
+                                                     conts))))
+                              (.preventDefault e))))}
      (session/get :game-state)]))
 
 
