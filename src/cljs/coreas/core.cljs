@@ -145,15 +145,24 @@
 (defn draw-resource-icon [d x y which sign]
   (.drawImage d (:img (res :icons-img)) (* 15 sign) (* 15 which) 15 15 x y 15 15))
 
+(def ICON_SIZE 15)
+
+(defn resources-of-country-ix [n]
+  [{:which (mod n 6) :sign (mod n 2)}
+   {:which (mod n 5) :sign (mod n 2)}])
+
+(defn ixfy [seq]
+  (for [n (range (count seq))]
+    [(get seq n) n]))
+
 (defn paint-fn [w h]
   (fn [this d [game-state]]
     (let [cc (:cc game-state)
           info (res :map-pieces-info)]
 
       ;; Draw countries
-      (doseq [n (range (count (:colors info)))]
-        (let [color (get (:colors info) n)
-              extent (get-in info [:extents (keyword color)])
+      (doseq [[color n] (ixfy (:colors info))]
+        (let [extent (get-in info [:extents (keyword color)])
               size (get-in info [:sizes (keyword color)])
               basex (* (:x (:cell_size info)) (mod n (:num_cells info)))
               basey (* (:y (:cell_size info)) (int (/ n (:num_cells info))))
@@ -176,16 +185,20 @@
       (doto d (.drawImage (res :outline-img) 0 0))
 
       ;; Draw resource icons
-      (doseq [n (range (count (:colors info)))]
-        (let [color (get (:colors info) n)
-              [x y] ((res :centers) color)]
+      (doseq [[color n] (ixfy (:colors info))]
+        (let [[x y] ((res :centers) color)]
           (when (not (contains? (:countries game-state) n))
-            (draw-resource-icon d (- x 16) (- y 7) (mod n 6) (mod n 2))
-            (draw-resource-icon d x (- y 7) (mod n 5) (mod n 2)))))
+            (let [resources (resources-of-country-ix n)
+                  xoffset (int (/ (* (inc ICON_SIZE) (count resources)) 2))
+                  yoffset (int (/ ICON_SIZE 2))]
+              (doseq [[resource i] (ixfy resources)]
+                (draw-resource-icon d (+ (* (inc ICON_SIZE) i) (- x xoffset)) (- y yoffset)
+                                    (:which resource) (:sign resource)))
+            ))))
 
       ;; Draw resources the player has
-      (doseq [rix (range (count (:resources game-state)))]
-        (doseq [ix (range ((:resources game-state) rix))]
+      (doseq [[resource-count rix] (ixfy (:resources game-state))]
+        (doseq [ix (range resource-count)]
           (draw-resource-icon d (inc (* 16 ix)) (inc (* 16 rix)) rix 0)))
       )
     )
@@ -244,8 +257,7 @@
                              [(color->text (get-pix (:data (res :map-img)) x y)) [x y]])))
             res (assoc
                  res :color-ix
-                 (make-map (for [n (range (count (:colors (res :map-pieces-info))))]
-                                 [(get (:colors (res :map-pieces-info)) n) n])))]
+                 (make-map (ixfy (:colors (res :map-pieces-info)))))]
 
         (session/put! :res res)))
 
