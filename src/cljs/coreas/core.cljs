@@ -145,9 +145,10 @@
 (defn draw-resource-icon [d x y which sign]
   (.drawImage d (:img (res :icons-img)) (* 15 sign) (* 15 which) 15 15 x y 15 15))
 
-(defn paint-fn [info w h]
+(defn paint-fn [w h]
   (fn [this d [game-state]]
-    (let [cc (:cc game-state)]
+    (let [cc (:cc game-state)
+          info (res :map-pieces-info)]
 
       ;; Draw countries
       (doseq [n (range (count (:colors info)))]
@@ -190,8 +191,8 @@
     )
   )
 
-(defn xy->country-ix [info x y]
-  ((:color-ix info) (color->text (get-pix (:data (res :map-img)) x y))))
+(defn xy->country-ix [x y]
+  ((res :color-ix) (color->text (get-pix (:data (res :map-img)) x y))))
 
 (defn color->country-name []
   (make-map (map (fn [{[x y] :pos text :text}] [(color->text (get-pix (:data (res :map-img)) x y)) text]) labels/pos->label)))
@@ -200,17 +201,17 @@
   ((color->country-name) (color->text (get-pix (:data (res :map-img)) x y))))
 
 
-(defn map-component [w h img info]
-  (let [f (paint-fn info w h)]
+(defn map-component [w h]
+  (let [f (paint-fn w h)]
     [canvas-comp {:width w :height h
                   :paint f
                   :on-mouse-move
                   (fn [e] (let [{x :x y :y} (relpos e)]
-                            (reset! (cursor session/state [:game-state :cc]) (xy->country-ix info x y))))
+                            (reset! (cursor session/state [:game-state :cc]) (xy->country-ix x y))))
                   :on-mouse-down
                   (fn [e] (let [{x :x y :y} (relpos e)]
                             (print (xy->country-name x y))
-                            (swap! (cursor session/state [:game-state :countries]) #(conj % (xy->country-ix info x y)))))}
+                            (swap! (cursor session/state [:game-state :countries]) #(conj % (xy->country-ix x y)))))}
      (session/get :game-state)]))
 
 
@@ -221,20 +222,17 @@
         w (:width (:orig_image_size info))
         h (:height (:orig_image_size info))]
     (if (and info img)
-      (let
-          [color-ix (make-map (for [n (range (count (:colors info)))]
-                           [(get (:colors info) n) n]))
-           more-info (assoc info :color-ix color-ix)]
-        [:span
-         [map-component w h img more-info]
-         [:br]
-         (pr-str @(cursor session/state [:game-state ]))])
+      [:span
+       [map-component w h]
+       [:br]
+       (pr-str @(cursor session/state [:game-state ]))]
       [:span])))
 
 
 (defn init-game-state []
   (print "initting")
-  (go (let [res
+  (go (let [
+            res
             {:map-img (<! (img-bundle-future "/map.png"))
              :icons-img (<! (img-bundle-future "/icons.png"))
              :map-pieces-info (<! (json-future "/built/map-pieces.json"))
@@ -243,7 +241,12 @@
             res (assoc
                  res :centers
                  (make-map (for [{[x y] :pos} labels/pos->label]
-                             [(color->text (get-pix (:data (res :map-img)) x y)) [x y]])))]
+                             [(color->text (get-pix (:data (res :map-img)) x y)) [x y]])))
+            res (assoc
+                 res :color-ix
+                 (make-map (for [n (range (count (:colors (res :map-pieces-info))))]
+                                 [(get (:colors (res :map-pieces-info)) n) n])))]
+
         (session/put! :res res)))
 
   (session/put! :game-state
