@@ -130,14 +130,25 @@
     (go (reset! atm (<! ch)))
     atm))
 
+(defn color->text [c] (str (:r c) "/" (:g c) "/" (:b c)))
+
+(defn make-map
+  "like _.object, convert a list of [key, value] pairs into a map."
+  [pairs]
+  (zipmap (map first pairs) (map second pairs)))
+
 (if (nil? (session/get :res))
-  (go (session/put!
-       :res
-       {:map-img (<! (img-bundle-future "/map.png"))
-        :icons-img (<! (img-bundle-future "/icons.png"))
-        :map-pieces-info (<! (json-future "/built/map-pieces.json"))
-        :map-pieces-img (<! (img-bundle-future "/built/map-pieces.png"))
-        :outline-img (<! (img-future "/built/map-outline.png"))})))
+  (go (let [res
+            {:map-img (<! (img-bundle-future "/map.png"))
+             :icons-img (<! (img-bundle-future "/icons.png"))
+             :map-pieces-info (<! (json-future "/built/map-pieces.json"))
+             :map-pieces-img (<! (img-bundle-future "/built/map-pieces.png"))
+             :outline-img (<! (img-future "/built/map-outline.png"))}
+            res (assoc
+                 res :centers
+                 (make-map (for [{[x y] :pos} labels/pos->label]
+                             [(color->text (get-pix (:data (res :map-img)) x y)) [x y]])))]
+        (session/put! :res res))))
 
 (defn res [kwd] (session/get-in [:res kwd]))
 
@@ -173,19 +184,13 @@
      (doto d (.drawImage (res :outline-img) 0 0))
 
      ;; Draw resource icons
-     (doseq [{[x y] :pos} labels/pos->label]
-       (.drawImage d (:img (res :icons-img)) (* 15 (ri 2)) (* 15 (ri 6)) 15 15 (- x 16) (- y 7) 15 15)
-       (.drawImage d (:img (res :icons-img)) (* 15 (ri 2)) (* 15 (ri 6)) 15 15 x (- y 7) 15 15))
-)))
+     (doseq [n (range (count (:colors info)))]
+       (let [color (get (:colors info) n)
+             [x y] ((res :centers) color)]
+         (.drawImage d (:img (res :icons-img)) (* 15 (mod n 2)) (* 15 (mod n 6)) 15 15 (- x 16) (- y 7) 15 15)
+         (.drawImage d (:img (res :icons-img)) (* 15 (mod n 3)) (* 15 (mod n 5)) 15 15 x (- y 7) 15 15))))))
 
 (def cur-country (atom 3))
-
-(defn color->text [c] (str (:r c) "/" (:g c) "/" (:b c)))
-
-(defn make-map
-  "like _.object, convert a list of [key, value] pairs into a map."
-  [pairs]
-  (zipmap (map first pairs) (map second pairs)))
 
 (defn xy->country-ix [info x y]
   ((:color-ix info) (color->text (get-pix (:data (res :map-img)) x y))))
