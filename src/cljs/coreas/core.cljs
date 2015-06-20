@@ -82,6 +82,7 @@
     (let [ch (chan)]
       (aset im "onload"
             (fn [e]
+#_              (print "loaded " url)
               (let [c (.createElement js/document "canvas")
                     d (.getContext c "2d")
                     w (.-width im)
@@ -122,7 +123,7 @@
   (let [img (js/Image.)
         ch (chan)]
     (set! (.-src img) url)
-    (set! (.-onload img) (fn [] (print "loaded") (forever ch img)))
+    (set! (.-onload img) (fn [] #_ (print "loaded " url) (forever ch img)))
     ch))
 
 (defn ch->atom [ch]
@@ -137,60 +138,57 @@
   [pairs]
   (zipmap (map first pairs) (map second pairs)))
 
-(if (nil? (session/get :res))
-  (go (let [res
-            {:map-img (<! (img-bundle-future "/map.png"))
-             :icons-img (<! (img-bundle-future "/icons.png"))
-             :map-pieces-info (<! (json-future "/built/map-pieces.json"))
-             :map-pieces-img (<! (img-bundle-future "/built/map-pieces.png"))
-             :outline-img (<! (img-future "/built/map-outline.png"))}
-            res (assoc
-                 res :centers
-                 (make-map (for [{[x y] :pos} labels/pos->label]
-                             [(color->text (get-pix (:data (res :map-img)) x y)) [x y]])))]
-        (session/put! :res res))))
-
 (defn res [kwd] (session/get-in [:res kwd]))
 
 (defn ri [n] (int (* n (.random js/Math))))
 
-(defn paint-fn [info img w h]
+(defn draw-resource-icon [d x y which sign]
+  (.drawImage d (:img (res :icons-img)) (* 15 sign) (* 15 which) 15 15 x y 15 15))
+
+(defn paint-fn [info w h]
   (fn [this d [game-state]]
     (let [cc (:cc game-state)]
 
       ;; Draw countries
-     (doseq [n (range (count (:colors info)))]
-       (let [color (get (:colors info) n)
-             extent (get-in info [:extents (keyword color)])
-             size (get-in info [:sizes (keyword color)])
-             basex (* (:x (:cell_size info)) (mod n (:num_cells info)))
-             basey (* (:y (:cell_size info)) (int (/ n (:num_cells info))))
-             sizex (:x size)
-             sizey (:y size)]
-         (doto (:ctx (res :map-pieces-img))
-           (aset "globalCompositeOperation" "source-atop")
-           (aset "fillStyle" (cond
-                               (contains? (:countries game-state) n) "#e77"
-                               (= n cc) "#cc7"
-                               true "#777"))
-           (.fillRect basex basey sizex sizey))
+      (doseq [n (range (count (:colors info)))]
+        (let [color (get (:colors info) n)
+              extent (get-in info [:extents (keyword color)])
+              size (get-in info [:sizes (keyword color)])
+              basex (* (:x (:cell_size info)) (mod n (:num_cells info)))
+              basey (* (:y (:cell_size info)) (int (/ n (:num_cells info))))
+              sizex (:x size)
+              sizey (:y size)]
+          (doto (:ctx (res :map-pieces-img))
+            (aset "globalCompositeOperation" "source-atop")
+            (aset "fillStyle" (cond
+                                (contains? (:countries game-state) n) "#e77"
+                                (= n cc) "#cc7"
+                                true "#777"))
+            (.fillRect basex basey sizex sizey))
 
-         (doto d
-           (.drawImage img
-                       basex basey sizex sizey
-                       (:min_x extent) (:min_y extent) sizex sizey))))
+          (doto d
+            (.drawImage (:canvas (res :map-pieces-img))
+                        basex basey sizex sizey
+                        (:min_x extent) (:min_y extent) sizex sizey))))
 
-     ;; Draw oceans and country borders
-     (doto d (.drawImage (res :outline-img) 0 0))
+      ;; Draw oceans and country borders
+      (doto d (.drawImage (res :outline-img) 0 0))
 
-     ;; Draw resource icons
-     (doseq [n (range (count (:colors info)))]
-       (let [color (get (:colors info) n)
-             [x y] ((res :centers) color)]
-         (.drawImage d (:img (res :icons-img)) (* 15 (mod n 2)) (* 15 (mod n 6)) 15 15 (- x 16) (- y 7) 15 15)
-         (.drawImage d (:img (res :icons-img)) (* 15 (mod n 3)) (* 15 (mod n 5)) 15 15 x (- y 7) 15 15))))))
+      ;; Draw resource icons
+      (doseq [n (range (count (:colors info)))]
+        (let [color (get (:colors info) n)
+              [x y] ((res :centers) color)]
+          (when (not (contains? (:countries game-state) n))
+            (draw-resource-icon d (- x 16) (- y 7) (mod n 6) (mod n 2))
+            (draw-resource-icon d x (- y 7) (mod n 5) (mod n 2)))))
 
-(def cur-country (atom 3))
+      ;; Draw resources the player has
+      (doseq [rix (range (count (:resources game-state)))]
+        (doseq [ix (range ((:resources game-state) rix))]
+          (draw-resource-icon d (inc (* 16 ix)) (inc (* 16 rix)) rix 0)))
+      )
+    )
+  )
 
 (defn xy->country-ix [info x y]
   ((:color-ix info) (color->text (get-pix (:data (res :map-img)) x y))))
@@ -201,11 +199,9 @@
 (defn xy->country-name [x y]
   ((color->country-name) (color->text (get-pix (:data (res :map-img)) x y))))
 
-(session/put! :game-state
-              {:countries #{}})
 
 (defn map-component [w h img info]
-  (let [f (paint-fn info img w h)]
+  (let [f (paint-fn info w h)]
     [canvas-comp {:width w :height h
                   :paint f
                   :on-mouse-move
@@ -229,18 +225,41 @@
           [color-ix (make-map (for [n (range (count (:colors info)))]
                            [(get (:colors info) n) n]))
            more-info (assoc info :color-ix color-ix)]
-       [map-component w h img more-info])
+        [:span
+         [map-component w h img more-info]
+         [:br]
+         (pr-str @(cursor session/state [:game-state ]))])
       [:span])))
 
 
+(defn init-game-state []
+  (print "initting")
+  (go (let [res
+            {:map-img (<! (img-bundle-future "/map.png"))
+             :icons-img (<! (img-bundle-future "/icons.png"))
+             :map-pieces-info (<! (json-future "/built/map-pieces.json"))
+             :map-pieces-img (<! (img-bundle-future "/built/map-pieces.png"))
+             :outline-img (<! (img-future "/built/map-outline.png"))}
+            res (assoc
+                 res :centers
+                 (make-map (for [{[x y] :pos} labels/pos->label]
+                             [(color->text (get-pix (:data (res :map-img)) x y)) [x y]])))]
+        (session/put! :res res)))
 
-
-
+  (session/put! :game-state
+                {:countries #{}
+                 :resources [2 2 2 2 2 2]}))
 
 ;; Initialize app
 (defn mount-root []
+  (print "mounting")
   (reagent/render [home-page] (.getElementById js/document "app")))
 
 (defn init! []
-  (session/put! :imgs {})
+  (init-game-state)
+  (aset js/document "onkeydown"
+        (fn [e]
+          (case (.-keyCode e)
+            82 (init-game-state)
+            (.log js/console (.-keyCode e)))))
   (mount-root))
