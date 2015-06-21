@@ -1,3 +1,4 @@
+var fs = require('fs');
 var _ = require('underscore');
 var u = require('./util');
 
@@ -22,5 +23,5 @@ u.with_image(__dirname + '/../resources/public/map.png', function(imdat, c) {
       }
     }
   }
-  console.log(sees);
+  fs.writeFileSync(__dirname + '/../built/adjacencies.json', JSON.stringify(sees), 'utf8')
 });

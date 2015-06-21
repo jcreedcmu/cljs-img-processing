@@ -1,6 +1,7 @@
 all: built/map-outline.png \
      built/map-pieces.png \
-     built/map-pieces.json
+     built/map-pieces.json \
+     built/adjacencies.json
 
 clean:
 	rm -rf built/*
@@ -13,3 +14,6 @@ built/map-%ieces.png build/map-%ieces.json:
 
 built/map-outline.png:
 	node build/map.js
+
+built/adjacencies.json:
+	node build/adjacencies.js
