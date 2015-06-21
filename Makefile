@@ -4,12 +4,12 @@ all: built/map-outline.png \
 
 clean:
 	rm -rf built/*
-	touch build/.gitkeep
+	touch built/.gitkeep
 
 # This sneaky trick gotten from
 # http://stackoverflow.com/questions/2973445/gnu-makefile-rule-generating
 built/map-%ieces.png build/map-%ieces.json:
-	cd build; node reimage.js
+	node build/reimage.js
 
 built/map-outline.png:
-	cd build; node map.js
+	node build/map.js
