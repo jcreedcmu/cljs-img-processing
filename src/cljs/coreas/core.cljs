@@ -282,7 +282,7 @@
         (session/put! :res res)))
 
   (session/put! :game-state
-                {:countries #{}
+                {:countries #{47}
                  :resources [2 2 2 2 2 2]}))
 
 ;; Initialize app
