@@ -310,7 +310,7 @@
 
   (session/put! :game-state
                 {:countries #{47}
-                 :resources [2 2 2 2 2 2]}))
+                 :resources [10 10 10 10 10 10]}))
 
 ;; Initialize app
 (defn mount-root []
