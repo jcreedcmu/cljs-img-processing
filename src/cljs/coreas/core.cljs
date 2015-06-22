@@ -120,6 +120,15 @@
 
     ch))
 
+(defn raw-json-future [url]
+  (let [ch (chan)]
+    (go
+      (GET url {:handler #(forever ch %)
+                :error-handler #(print "an error occurred: " %)
+                :response-format :json}))
+
+    ch))
+
 (defn img-future [url]
   (let [img (js/Image.)
         ch (chan)]
@@ -168,6 +177,11 @@
   (for [n (range (count seq))]
     [(get seq n) n]))
 
+(defn accessible-from?
+  "Is country `n` accessible in state `game-state`?"
+  [game-state n]
+  (some #((:countries game-state) %) ((res :adjacencies) n)))
+
 (defn paint-fn [w h]
   (fn [this d [game-state]]
     (let [cc (:cc game-state)
@@ -184,8 +198,8 @@
           (doto (:ctx (res :map-pieces-img))
             (aset "globalCompositeOperation" "source-atop")
             (aset "fillStyle" (cond
-                                (contains? (:countries game-state) n) "#e77"
-                                (= n cc) "#cc7"
+                                (contains? (:countries game-state) n) "#f65"
+                                (accessible-from? game-state n) (if (= n cc) "#ff0" "#cc7")
                                 true "#777"))
             (.fillRect basex basey sizex sizey))
 
@@ -227,7 +241,7 @@
   ((color->country-name) (color->text (get-pix (:data (res :map-img)) x y))))
 
 
-(defn map-component [w h]
+(defn map-component [w h game-state]
   (let [f (paint-fn w h)]
     [canvas-comp {:width w :height h
                   :paint f
@@ -238,14 +252,15 @@
                   (fn [e] (let [{x :x y :y} (relpos e)]
                             (let [ix (xy->country-ix x y)]
                               (swap! (cursor session/state [:game-state :countries])
-                                     (fn [conts] (if (contains? conts ix)
-                                                   (do (print "nope") conts)
+                                     (fn [conts] (if (and (accessible-from? game-state ix)
+                                                          (not (contains? conts ix)))
                                                    (if (add-resources! (resources-of-country-ix ix))
                                                      (do (print (xy->country-name x y))
                                                          (conj conts ix))
-                                                     conts))))
+                                                     conts)
+                                                   (do (print "nope") conts))))
                               (.preventDefault e))))}
-     (session/get :game-state)]))
+     game-state]))
 
 
 
@@ -256,11 +271,21 @@
         h (:height (:orig_image_size info))]
     (if (and info img)
       [:span
-       [map-component w h]
+       [map-component w h (session/get :game-state)]
        [:br]
        (pr-str @(cursor session/state [:game-state]))]
       [:span])))
 
+(defn color-bimap->ix-bimap
+  "Convert a (color -> color -> 'a) map to a (ix -> ix set) map,
+  where cix : color -> ix"
+  [cix map]
+  (make-map (for [[key value] map
+                  :let [ix (cix key)]
+                  :when ix]
+              [ix (set (for [key2 (keys value)
+                             :let [ix2 (cix key2)]
+                             :when ix2] ix2))])))
 
 (defn init-game-state []
   (print "initting")
@@ -277,8 +302,10 @@
                              [(color->text (get-pix (:data (res :map-img)) x y)) [x y]])))
             res (assoc
                  res :color-ix
-                 (make-map (ixfy (:colors (res :map-pieces-info)))))]
-
+                 (make-map (ixfy (:colors (res :map-pieces-info)))))
+            res (assoc
+                 res :adjacencies
+                 (color-bimap->ix-bimap (res :color-ix) (<! (raw-json-future "/built/adjacencies.json"))))]
         (session/put! :res res)))
 
   (session/put! :game-state
