@@ -170,8 +170,7 @@
     new-resources-ok))
 
 (defn resources-of-country-ix [n]
-  [{:which (mod n 5) :sign (mod n 2)}
-   {:which (mod n 6) :sign 1}])
+  ((res :country-resources) n))
 
 (defn ixfy [seq]
   (for [n (range (count seq))]
@@ -305,12 +304,16 @@
                  (make-map (ixfy (:colors (res :map-pieces-info)))))
             res (assoc
                  res :adjacencies
-                 (color-bimap->ix-bimap (res :color-ix) (<! (raw-json-future "/built/adjacencies.json"))))]
+                 (color-bimap->ix-bimap (res :color-ix) (<! (raw-json-future "/built/adjacencies.json"))))
+            res (assoc
+                 res :country-resources
+                 (make-map (for [[k v] (res :adjacencies)]
+                                [k  [{:which (ri 6) :sign 0} {:which (ri 6) :sign 1}]])))]
         (session/put! :res res)))
 
   (session/put! :game-state
                 {:countries #{47}
-                 :resources [10 10 10 10 10 10]}))
+                 :resources [2 2 2 2 2 0]}))
 
 ;; Initialize app
 (defn mount-root []
@@ -323,5 +326,6 @@
         (fn [e]
           (case (.-keyCode e)
             82 (init-game-state)
+            83 (reset! (cursor session/state [:game-state :countries]) #{47})
             (.log js/console (.-keyCode e)))))
   (mount-root))
