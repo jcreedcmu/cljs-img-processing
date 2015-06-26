@@ -158,8 +158,8 @@
 
 (def ICON_SIZE 15)
 
-;; This :country-resources seems to miscount resource 0
-;; {0 [{:which 3, :sign 1}], 32 [{:which 1, :sign 0} {:which 5, :sign 1}], 1 [{:which 1, :sign 1}], 33 [{:which 5, :sign 0} {:which 1, :sign 1}], 2 [{:which 5, :sign 0} {:which 4, :sign 1}], 34 [{:which 1, :sign 1}], 3 [{:which 5, :sign 1}], 35 [{:which 0, :sign 1}], 4 [{:which 1, :sign 1}], 36 [{:which 0, :sign 1}], 5 [{:which 4, :sign 1}], 37 [{:which 5, :sign 0} {:which 1, :sign 1}], 6 [{:which 2, :sign 1}], 38 [{:which 2, :sign 1}], 7 [{:which 4, :sign 1}], 39 [{:which 0, :sign 0} {:which 2, :sign 1}], 8 [{:which 0, :sign 0}], 40 [{:which 4, :sign 1}], 9 [{:which 4, :sign 0} {:which 2, :sign 1}], 41 [{:which 0, :sign 1}], 10 [{:which 1, :sign 1}], 42 [{:which 1, :sign 1}], 11 [{:which 1, :sign 1}], 43 [{:which 5, :sign 1}], 12 [{:which 0, :sign 1}], 44 [{:which 0, :sign 1}], 13 [{:which 5, :sign 0}], 45 [{:which 1, :sign 1}], 14 [{:which 1, :sign 1}], 46 [{:which 3, :sign 0} {:which 4, :sign 1}], 15 [{:which 4, :sign 1}], 47 [{:which 0, :sign 1}], 16 [{:which 1, :sign 0} {:which 3, :sign 1}], 48 [{:which 1, :sign 0} {:which 2, :sign 1}], 17 [{:which 4, :sign 0}], 49 [{:which 2, :sign 0}], 18 [{:which 1, :sign 1}], 50 [{:which 5, :sign 1}], 19 [{:which 3, :sign 1}], 51 [{:which 4, :sign 0} {:which 5, :sign 1}], 20 [{:which 2, :sign 0} {:which 1, :sign 1}], 21 [{:which 2, :sign 0} {:which 1, :sign 1}], 22 [{:which 5, :sign 1}], 23 [{:which 1, :sign 0} {:which 2, :sign 1}], 24 [{:which 3, :sign 1}], 25 [{:which 3, :sign 0} {:which 0, :sign 1}], 26 [{:which 5, :sign 1}], 27 [{:which 4, :sign 0} {:which 1, :sign 1}], 28 [{:which 1, :sign 1}], 29 [{:which 3, :sign 0} {:which 0, :sign 1}], 30 [{:which 5, :sign 1}], 31 [{:which 0, :sign 1}]}
+
+
 
 (defn add-resource [resources {:keys [which sign]}]
   (update resources which (if (= sign 0) inc dec)))
@@ -290,36 +290,52 @@
                              :let [ix2 (cix key2)]
                              :when ix2] ix2))])))
 
+(def initial-country 39) ; urrakeny
+
 (defn init-game-state []
   (session/put! :game-state
-                {:countries #{39} ; urrakeny
+                {:countries #{initial-country}
                  :resources (vec (map #(if (< % 0) (- %) 0) (res :map-sum-resources)))}))
 
 (defn distinct-res []
   (let [a (ri 6) b (ri 5)]
     (if (>= b a) [a (inc b)] [a b])))
 
-(defn random-resources []
-  (cond
-    (rcoin 0.3) (let [[a b] (distinct-res)]
-                  [{:which a :sign 0}
-                   {:which b :sign 1}])
-    (rcoin 0.9) [{:which (ri 6) :sign 1}]
-    true [{:which (ri 6) :sign 0}]))
+(defn bool->int [b] (if b 1 0))
 
+(defn rand-res-for [sum which]
+  (let [sign (let [v (get sum which)]
+           (cond
+             (= v 0) (bool->int (rcoin 0.5))
+             (> v 2) 1
+             (< v -2) 0
+             (> v 0) (bool->int (rcoin 0.9))
+             (< v 0) (bool->int (rcoin 0.5))
+             ))]
+     {:which which
+      :sign sign}))
+
+(defn random-resources-for [countries]
+  (loop [co countries
+         sum [0 0 0 0 0 0]
+         res []]
+    (if (empty? co)
+      [res sum]
+      (let [c (first co)
+            re (cond
+                 (rcoin 0.6) [(rand-res-for sum (ri 6))
+                               (rand-res-for sum (ri 6))
+                               (rand-res-for sum (ri 6))]
+                 (rcoin 0.9) (let [[a b] (distinct-res)]
+                               [(rand-res-for sum a)
+                                (rand-res-for sum b)])
+                 true [(rand-res-for sum (ri 6))])]
+        (recur (rest co) (reduce add-resource sum re) (conj res [c re]))))))
 
 (defn random-resources-on [countries]
-  (loop [count 100]
-    (let [proposal (for [k countries]
-                     [k (random-resources)])
-          costs (reduce add-resource [0 0 0 0 0 0]
-                        (apply concat (for [[k v] proposal] v)))
-          cost (apply min costs)]
-      (if (and (> count 0)
-               (or (< cost -4) (< (get costs 5) 0)))
-        (recur (dec count))
-        (do (print count costs) {:country-resources (make-map proposal)
-                                 :map-sum-resources costs})))))
+  (let [[proposal costs] (random-resources-for (remove #(= % initial-country) countries))]
+    {:country-resources (make-map proposal)
+     :map-sum-resources costs}))
 
 (defn init-state []
   (print "initting")
