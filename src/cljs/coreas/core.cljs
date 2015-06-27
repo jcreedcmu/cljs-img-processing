@@ -263,6 +263,15 @@
                               (.preventDefault e))))}
      game-state]))
 
+(defn capitalize-words [ss]
+  ;;str.replace(/\w\S*/g, function(txt){return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();});
+  (if ss
+    (.replace ss (js/RegExp. "\\w\\S*" "g")
+              (fn [txt]
+                (str (-> txt (.charAt 0) (.toUpperCase))
+                     (-> txt (.substr 1) (.toLowerCase)))))
+    nil)
+  )
 (declare init-game-state)
 (declare init-ephemeral-state)
 (defn home-page []
@@ -276,9 +285,10 @@
        [:br]
        [:button {:on-click #(init-ephemeral-state)} "Restart Map"]
        [:button {:on-click #(init-game-state)} "New Map"]
-       [:span.cc-name ((res :color->country-name) (get (get-in @session/state [:res :map-pieces-info :colors])
-                                          (:cc (session/get :game-state)))) ]]
-
+       [:span.cc-name (capitalize-words
+                       ((res :color->country-name)
+                        (get (get-in @session/state [:res :map-pieces-info :colors])
+                             (:cc (session/get :game-state)))))]]
       [:span])))
 
 (defn color-bimap->ix-bimap
