@@ -242,12 +242,8 @@
 (defn xy->country-ix [x y]
   ((res :color-ix) (color->text (get-pix (:data (res :map-img)) x y))))
 
-(defn color->country-name []
-  (make-map (map (fn [{[x y] :pos text :text}] [(color->text (get-pix (:data (res :map-img)) x y)) text]) labels/pos->label)))
-
 (defn xy->country-name [x y]
-  ((color->country-name) (color->text (get-pix (:data (res :map-img)) x y))))
-
+  ((res :color->country-name) (color->text (get-pix (:data (res :map-img)) x y))))
 
 (defn map-component [w h game-state]
   (let [f (paint-fn w h)]
@@ -283,7 +279,7 @@
        [:br]
        [:button {:on-click #(init-ephemeral-state)} "Restart Map"]
        [:button {:on-click #(init-game-state)} "New Map"]
-       [:span.cc-name ((color->country-name) (get (get-in @session/state [:res :map-pieces-info :colors])
+       [:span.cc-name ((res :color->country-name) (get (get-in @session/state [:res :map-pieces-info :colors])
                                           (:cc (session/get :game-state)))) ]]
 
       [:span])))
@@ -369,7 +365,10 @@
                  (make-map (ixfy (:colors (res :map-pieces-info)))))
             res (assoc
                  res :adjacencies
-                 (color-bimap->ix-bimap (res :color-ix) (<! (raw-json-future "/built/adjacencies.json"))))]
+                 (color-bimap->ix-bimap (res :color-ix) (<! (raw-json-future "/built/adjacencies.json"))))
+            res (assoc
+                 res :color->country-name
+                 (make-map (map (fn [{[x y] :pos text :text}] [(color->text (get-pix (:data (res :map-img)) x y)) text]) labels/pos->label)))]
         (session/put! :res res)
         (init-game-state))))
 
