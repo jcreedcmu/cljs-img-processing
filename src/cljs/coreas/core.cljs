@@ -41,11 +41,18 @@
                              (aset c "height" (:height attrs))
                              (let [ctx (.getContext c "2d")]
                                (aset c "d" ctx)
-                               (.paint this ctx props))
+                               ;; We're doing this .call business
+                               ;; instead of a straight (.paint this
+                               ;; ...) to stop google closure from
+                               ;; optimizing the name of .paint away
+                               (.call (aget this "paint") this ctx props))
                              ))
     :component-will-receive-props
     (fn [this [_ _ & props]]
-      (.paint this (-> this (.getDOMNode) (.-d)) props))
+      ;; We're doing this .call business instead of a straight (.paint this
+      ;; ...) to stop google closure from optimizing the name of
+      ;; .paint away
+      (.call (aget this "paint") this (-> this (.getDOMNode) (aget "d")) props))
     ;;    :component-will-update (fn [this] (pr "will-update"))
     :reagent-render (fn [attrs & props]
                       [:canvas (dissoc attrs :width :height :paint)])}))
@@ -358,11 +365,11 @@
   (print "initting")
   (go (let [
             res
-            {:map-img (<! (img-bundle-future "/map.png"))
-             :icons-img (<! (img-bundle-future "/icons.png"))
-             :map-pieces-info (<! (json-future "/built/map-pieces.json"))
-             :map-pieces-img (<! (img-bundle-future "/built/map-pieces.png"))
-             :outline-img (<! (img-future "/built/map-outline.png"))}
+            {:map-img (<! (img-bundle-future "map.png"))
+             :icons-img (<! (img-bundle-future "icons.png"))
+             :map-pieces-info (<! (json-future "built/map-pieces.json"))
+             :map-pieces-img (<! (img-bundle-future "built/map-pieces.png"))
+             :outline-img (<! (img-future "built/map-outline.png"))}
             res (assoc
                  res :centers
                  (make-map (for [{[x y] :pos} labels/pos->label]
@@ -372,7 +379,7 @@
                  (make-map (ixfy (:colors (res :map-pieces-info)))))
             res (assoc
                  res :adjacencies
-                 (color-bimap->ix-bimap (res :color-ix) (<! (raw-json-future "/built/adjacencies.json"))))
+                 (color-bimap->ix-bimap (res :color-ix) (<! (raw-json-future "built/adjacencies.json"))))
             res (assoc
                  res :color->country-name
                  (make-map (map (fn [{[x y] :pos text :text}] [(color->text (get-pix (:data (res :map-img)) x y)) text]) labels/pos->label)))]

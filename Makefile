@@ -17,3 +17,12 @@ built/map-outline.png: resources/public/map.png
 
 built/adjacencies.json: resources/public/map.png
 	node build/adjacencies.js
+
+deploy:
+	rm -rf dist
+	lein with-profile prod cljsbuild once
+	cp -r built dist/
+	cp -r resources/public/css dist/
+	cp -r resources/public/icons.png dist/
+	cp -r resources/public/map.png dist/
+	cp -r resources/public/index.html dist/

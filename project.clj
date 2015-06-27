@@ -41,7 +41,7 @@
 
   :minify-assets
   {:assets
-    {"resources/public/css/site.min.css" "resources/public/css/site.css"}}
+   {"resources/public/css/site.min.css" "resources/public/css/site.css"}}
 
   :cljsbuild {:builds {:app {:source-paths ["src/cljs"]
                              :compiler {:output-to     "resources/public/js/app.js"
@@ -78,16 +78,23 @@
                    :cljsbuild {:builds {:app {:source-paths ["env/dev/cljs"]
                                               :compiler {:main "coreas.dev"
                                                          :source-map true}}
-}
-}}
+                                        }
+                               }}
+             :prod {
 
-             :uberjar {:hooks [leiningen.cljsbuild minify-assets.plugin/hooks]
-                       :env {:production true}
-                       :aot :all
-                       :omit-source true
-                       :cljsbuild {:jar true
-                                   :builds {:app
-                                             {:source-paths ["env/prod/cljs"]
-                                              :compiler
-                                              {:optimizations :advanced
-                                               :pretty-print false}}}}}})
+
+
+                   :source-paths ["env/prod/clj"]
+                   :plugins [[lein-cljsbuild "1.0.5"]]
+
+
+                   :cljsbuild {:builds {:app {:source-paths ["env/prod/cljs"]
+                                              :compiler {:main "coreas.prod"
+                                                         :source-map "dist/js/app.js.map"
+                                                         :optimizations :advanced
+                                                         :output-to     "dist/js/app.js"
+                                                         :output-dir    "dist/js/out"}}
+                                        }
+                               }}
+
+             })
