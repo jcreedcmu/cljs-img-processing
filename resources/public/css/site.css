@@ -2,6 +2,7 @@ body {
   font-family: 'Helvetica Neue', Verdana, Helvetica, Arial, sans-serif;
   margin: 10px 10px;
   color: #333;
+  background-color: rgb(80, 80, 160);
 }
 
 h1, h2, h3 {
@@ -26,4 +27,46 @@ a {
 
 a:hover {
   text-decoration: underline;
+}
+
+
+/* latin */
+@font-face {
+  font-family: 'Oswald';
+  font-style: normal;
+  font-weight: 400;
+  src: local('Oswald Regular'), local('Oswald-Regular'), url(http://fonts.gstatic.com/s/oswald/v10/pEobIV_lL25TKBpqVI_a2w.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2212, U+2215, U+E0FF, U+EFFD, U+F000;
+}
+
+*:focus {
+    outline: 0;
+}
+
+button {
+    background: #fff;
+    border: 0px;
+    margin: 5px;
+    padding: 10px;
+    font-size: 18px;
+    font-family: Oswald;
+    background-color: rgb(120,120,200);
+    color: rgb(20,20,80);
+    cursor: pointer;
+}
+
+button:hover {
+    background-color: rgb(180,180,200);
+}
+
+button:active {
+    background-color: rgb(120,120,200);
+}
+
+.cc-name {
+    margin: 5px;
+    padding: 10px;
+    font-size: 18px;
+    font-family: Oswald;
+    color: rgb(120,120,200);
 }

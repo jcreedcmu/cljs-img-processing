@@ -11,9 +11,11 @@ u.with_image(__dirname + '/../resources/public/map.png', function(imdat, c) {
 
       u.set4(newdat, x, y, (here > others[0] || here > others[1] || here > others[2] || here > others[3])  ?
 	     [32,32,32,255] :
-	     (u.get(imdat, x, y) == 0x4b ?
+	     (u.get(imdat, x, y) == 0x36 ? /* mountain */
+	      [255, 255, 255, 255] :
+	      (u.get(imdat, x, y) == 0x4b ? /* water */
 	      [80, 80, 160, 255] :
-	      [255, 255, 255, 0])  );
+	       [255, 255, 255, 0])  ));
     }
   }
 

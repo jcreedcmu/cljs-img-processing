@@ -15,7 +15,7 @@
   (:import goog.History))
 
 (enable-console-print!)
-
+(def NUM_RESOURCES 6)
 ;; -------------------------
 ;; Views
 (defn listen [el type]
@@ -174,7 +174,7 @@
     new-resources-ok))
 
 (defn resources-of-country-ix [n]
-  ((res :country-resources) n))
+  (((session/get :game-state) :country-resources) n))
 
 (defn ixfy [seq]
   (for [n (range (count seq))]
@@ -224,12 +224,17 @@
               (doseq [[resource i] (ixfy resources)]
                 (draw-resource-icon d (+ (* (inc ICON_SIZE) i) (- x xoffset)) (- y yoffset)
                                     (:which resource) (:sign resource)))
-            ))))
+              ))))
 
       ;; Draw resources the player has
+
+      (doto d
+        (aset "fillStyle" "#7878C8")
+        (.fillRect 0 0 150 (+ 2 (* 16 NUM_RESOURCES)))
+        (.strokeRect 0.5 0.5 150 (+ 2 (* 16 NUM_RESOURCES))))
       (doseq [[resource-count rix] (ixfy (:resources game-state))]
         (doseq [ix (range resource-count)]
-          (draw-resource-icon d (inc (* 16 ix)) (inc (* 16 rix)) rix 0)))
+          (draw-resource-icon d (+ 2 (* 16 ix)) (+ 2 (* 16 rix)) rix 0)))
       )
     )
   )
@@ -265,8 +270,8 @@
                               (.preventDefault e))))}
      game-state]))
 
-
-
+(declare init-game-state)
+(declare init-ephemeral-state)
 (defn home-page []
   (let [info (res :map-pieces-info)
         img (:canvas (res :map-pieces-img))
@@ -276,7 +281,11 @@
       [:span
        [map-component w h (session/get :game-state)]
        [:br]
-       (pr-str (res :map-sum-resources))]
+       [:button {:on-click #(init-ephemeral-state)} "Restart Map"]
+       [:button {:on-click #(init-game-state)} "New Map"]
+       [:span.cc-name ((color->country-name) (get (get-in @session/state [:res :map-pieces-info :colors])
+                                          (:cc (session/get :game-state)))) ]]
+
       [:span])))
 
 (defn color-bimap->ix-bimap
@@ -291,11 +300,6 @@
                              :when ix2] ix2))])))
 
 (def initial-country 39) ; urrakeny
-
-(defn init-game-state []
-  (session/put! :game-state
-                {:countries #{initial-country}
-                 :resources (vec (map #(if (< % 0) (- %) 0) (res :map-sum-resources)))}))
 
 (defn distinct-res []
   (let [a (ri 6) b (ri 5)]
@@ -337,6 +341,16 @@
     {:country-resources (make-map proposal)
      :map-sum-resources costs}))
 
+(defn init-ephemeral-state []
+  (swap! (cursor session/state [:game-state])
+         (fn [st] (merge st {:countries #{initial-country}
+                             :resources (vec (map #(if (< % 0) (- %) 0)
+                                                  (st :map-sum-resources)))}))))
+
+(defn init-game-state []
+  (session/put! :game-state (random-resources-on (keys (res :adjacencies))))
+  (init-ephemeral-state))
+
 (defn init-state []
   (print "initting")
   (go (let [
@@ -355,8 +369,7 @@
                  (make-map (ixfy (:colors (res :map-pieces-info)))))
             res (assoc
                  res :adjacencies
-                 (color-bimap->ix-bimap (res :color-ix) (<! (raw-json-future "/built/adjacencies.json"))))
-            res (merge res (random-resources-on (keys (res :adjacencies))))]
+                 (color-bimap->ix-bimap (res :color-ix) (<! (raw-json-future "/built/adjacencies.json"))))]
         (session/put! :res res)
         (init-game-state))))
 
@@ -367,7 +380,7 @@
   (reagent/render [home-page] (.getElementById js/document "app")))
 
 (defn init! []
-  (init-game-state)
+  (init-state)
   (aset js/document "onkeydown"
         (fn [e]
           (case (.-keyCode e)
