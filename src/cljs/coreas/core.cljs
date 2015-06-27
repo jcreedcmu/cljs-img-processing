@@ -16,6 +16,8 @@
 
 (enable-console-print!)
 (def NUM_RESOURCES 6)
+(def ICON_SIZE 15)
+
 ;; -------------------------
 ;; Views
 (defn listen [el type]
@@ -154,12 +156,7 @@
 (defn rcoin [p] (< (.random js/Math) p))
 
 (defn draw-resource-icon [d x y which sign]
-  (.drawImage d (:img (res :icons-img)) (* 15 sign) (* 15 which) 15 15 x y 15 15))
-
-(def ICON_SIZE 15)
-
-
-
+  (.drawImage d (:img (res :icons-img)) (* ICON_SIZE sign) (* ICON_SIZE which) ICON_SIZE ICON_SIZE x y ICON_SIZE ICON_SIZE))
 
 (defn add-resource [resources {:keys [which sign]}]
   (update resources which (if (= sign 0) inc dec)))
@@ -230,11 +227,11 @@
 
       (doto d
         (aset "fillStyle" "#7878C8")
-        (.fillRect 0 0 150 (+ 2 (* 16 NUM_RESOURCES)))
-        (.strokeRect 0.5 0.5 150 (+ 2 (* 16 NUM_RESOURCES))))
+        (.fillRect 0 0 150 (+ 2 (* (inc ICON_SIZE) NUM_RESOURCES)))
+        (.strokeRect 0.5 0.5 150 (+ 2 (* (inc ICON_SIZE) NUM_RESOURCES))))
       (doseq [[resource-count rix] (ixfy (:resources game-state))]
         (doseq [ix (range resource-count)]
-          (draw-resource-icon d (+ 2 (* 16 ix)) (+ 2 (* 16 rix)) rix 0)))
+          (draw-resource-icon d (+ 2 (* (inc ICON_SIZE) ix)) (+ 2 (* (inc ICON_SIZE) rix)) rix 0)))
       )
     )
   )
@@ -298,7 +295,7 @@
 (def initial-country 39) ; urrakeny
 
 (defn distinct-res []
-  (let [a (ri 6) b (ri 5)]
+  (let [a (ri NUM_RESOURCES) b (ri (dec NUM_RESOURCES))]
     (if (>= b a) [a (inc b)] [a b])))
 
 (defn bool->int [b] (if b 1 0))
@@ -317,19 +314,19 @@
 
 (defn random-resources-for [countries]
   (loop [co countries
-         sum [0 0 0 0 0 0]
+         sum (vec (map #(do 0) (range NUM_RESOURCES)))
          res []]
     (if (empty? co)
       [res sum]
       (let [c (first co)
             re (cond
-                 (rcoin 0.6) [(rand-res-for sum (ri 6))
-                               (rand-res-for sum (ri 6))
-                               (rand-res-for sum (ri 6))]
+                 (rcoin 0.6) [(rand-res-for sum (ri NUM_RESOURCES))
+                               (rand-res-for sum (ri NUM_RESOURCES))
+                               (rand-res-for sum (ri NUM_RESOURCES))]
                  (rcoin 0.9) (let [[a b] (distinct-res)]
                                [(rand-res-for sum a)
                                 (rand-res-for sum b)])
-                 true [(rand-res-for sum (ri 6))])]
+                 true [(rand-res-for sum (ri NUM_RESOURCES))])]
         (recur (rest co) (reduce add-resource sum re) (conj res [c re]))))))
 
 (defn random-resources-on [countries]
@@ -383,7 +380,7 @@
   (aset js/document "onkeydown"
         (fn [e]
           (case (.-keyCode e)
-            82 (init-state)
-            83 (init-game-state)
+            82 (init-game-state)
+            83 (init-ephemeral-state)
             (.log js/console (.-keyCode e)))))
   (mount-root))
