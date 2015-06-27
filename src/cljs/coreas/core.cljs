@@ -15,7 +15,7 @@
   (:import goog.History))
 
 (enable-console-print!)
-(def NUM_RESOURCES 6)
+(def NUM_RESOURCES 9)
 (def ICON_SIZE 15)
 
 ;; -------------------------
